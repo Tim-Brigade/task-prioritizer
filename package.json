@@ -1,29 +1,3 @@
-# Task Prioritizer
-
-A beautiful whiteboard-style task prioritizer using the Eisenhower Matrix (Urgent/Important framework).
-
-## Features
-
-- 📋 Post-it note style tasks on a whiteboard
-- 🎯 Eisenhower Matrix (4 quadrants)
-- ✅ Check off completed tasks
-- 📅 Due dates with overdue warnings
-- 🗓️ Weekly summaries with download
-- 📊 History of completed weeks
-- 💾 Backup & Restore functionality
-- 🎨 Drag and drop between quadrants
-- 💻 Works offline (localStorage)
-
-## Live Demo
-
-Visit: [Your GitHub Pages URL will be here]
-
-## Local Development
-```bash
-npm install
-npm start
-mkdir -p public src
-cat > package.json << 'EOF'
 {
   "name": "task-prioritizer",
   "version": "1.0.0",
