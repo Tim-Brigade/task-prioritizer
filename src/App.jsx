@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Check, Plus, X, Calendar, Download, Edit2, Upload, HelpCircle } from 'lucide-react';
+import { Check, Plus, X, Calendar, Download, Edit2, Upload, HelpCircle, Heart } from 'lucide-react';
 
 const TaskPrioritizer = () => {
   const [tasks, setTasks] = useState([]);
@@ -19,11 +19,15 @@ const TaskPrioritizer = () => {
   const [selectedQuadrant, setSelectedQuadrant] = useState(null);
   const [draggedTask, setDraggedTask] = useState(null);
   const [weekStart, setWeekStart] = useState('');
+  const [shoutouts, setShoutouts] = useState([]);
+  const [showShoutoutModal, setShowShoutoutModal] = useState(false);
+  const [newShoutout, setNewShoutout] = useState({ colleague: '', note: '' });
 
   useEffect(() => {
     const savedTasks = localStorage.getItem('taskPrioritizerTasks');
     const savedWeekStart = localStorage.getItem('taskPrioritizerWeekStart');
     const savedHistory = localStorage.getItem('taskPrioritizerHistory');
+    const savedShoutouts = localStorage.getItem('taskPrioritizerShoutouts');
     const hasSeenHelp = localStorage.getItem('taskPrioritizerHasSeenHelp');
 
     if (savedTasks) {
@@ -116,6 +120,10 @@ const TaskPrioritizer = () => {
     if (savedHistory) {
       setWeeklyHistory(JSON.parse(savedHistory));
     }
+
+    if (savedShoutouts) {
+      setShoutouts(JSON.parse(savedShoutouts));
+    }
     
     if (savedWeekStart) {
       setWeekStart(savedWeekStart);
@@ -143,6 +151,10 @@ const TaskPrioritizer = () => {
   useEffect(() => {
     localStorage.setItem('taskPrioritizerTasks', JSON.stringify(tasks));
   }, [tasks]);
+
+  useEffect(() => {
+    localStorage.setItem('taskPrioritizerShoutouts', JSON.stringify(shoutouts));
+  }, [shoutouts]);
 
   const getWeekDateRange = () => {
     if (!weekStart) return '';
@@ -236,6 +248,25 @@ const TaskPrioritizer = () => {
     setTasks(tasks.filter(task => task.id !== taskId));
   };
 
+  const addShoutout = () => {
+    if (!newShoutout.colleague.trim() || !newShoutout.note.trim()) return;
+
+    const shoutout = {
+      id: Date.now(),
+      colleague: newShoutout.colleague,
+      note: newShoutout.note,
+      createdAt: new Date().toISOString()
+    };
+
+    setShoutouts([...shoutouts, shoutout]);
+    setNewShoutout({ colleague: '', note: '' });
+    setShowShoutoutModal(false);
+  };
+
+  const deleteShoutout = (shoutoutId) => {
+    setShoutouts(shoutouts.filter(s => s.id !== shoutoutId));
+  };
+
   const moveTask = (taskId, newQuadrant) => {
     setTasks(tasks.map(task =>
       task.id === taskId ? { ...task, quadrant: newQuadrant } : task
@@ -262,11 +293,19 @@ const TaskPrioritizer = () => {
 
   const endWeek = () => {
     const completedTasks = tasks.filter(t => t.completed);
-    
-    const message = completedTasks.length > 0 
-      ? `End this week and start fresh?\n\n• Download summary of ${completedTasks.length} completed task(s)\n• Clear all completed tasks\n• Reset for new week`
-      : `End this week and start fresh?\n\nNo completed tasks to summarize.\n• Clear all tasks\n• Reset for new week`;
-    
+
+    let message = `End this week and start fresh?\n\n`;
+    if (completedTasks.length > 0) {
+      message += `• Download summary of ${completedTasks.length} completed task(s)\n`;
+    } else {
+      message += `No completed tasks to summarize.\n`;
+    }
+    if (shoutouts.length > 0) {
+      message += `• Include ${shoutouts.length} shoutout(s) in summary\n`;
+    }
+    message += `• Clear all completed tasks${shoutouts.length > 0 ? ' and shoutouts' : ''}\n`;
+    message += `• Reset for new week`;
+
     setEndWeekMessage(message);
     setShowEndWeekModal(true);
   };
@@ -274,30 +313,41 @@ const TaskPrioritizer = () => {
   const confirmEndWeek = () => {
     const completedTasks = tasks.filter(t => t.completed);
     let snapshot = '';
-    
-    if (completedTasks.length > 0) {
-      snapshot = `Weekly Task Summary - ${getWeekDateRange()}\n\n`;
-      
-      ['q1', 'q2', 'q3', 'q4'].forEach(quadrant => {
-        const quadrantTasks = completedTasks.filter(t => t.quadrant === quadrant);
-        if (quadrantTasks.length > 0) {
-          const quadrantName = {
-            q1: 'Urgent & Important (Do First)',
-            q2: 'Important, Not Urgent (Schedule)',
-            q3: 'Urgent, Not Important (Delegate)',
-            q4: 'Neither Urgent nor Important (Eliminate)'
-          }[quadrant];
-          
-          snapshot += `${quadrantName}:\n`;
-          quadrantTasks.forEach(task => {
-            snapshot += `✓ ${task.title}\n`;
-            if (task.description) {
-              snapshot += `  ${task.description}\n`;
-            }
-          });
-          snapshot += '\n';
-        }
-      });
+
+    if (completedTasks.length > 0 || shoutouts.length > 0) {
+      snapshot = `Weekly Summary - ${getWeekDateRange()}\n\n`;
+
+      if (completedTasks.length > 0) {
+        snapshot += `COMPLETED TASKS:\n\n`;
+        ['q1', 'q2', 'q3', 'q4'].forEach(quadrant => {
+          const quadrantTasks = completedTasks.filter(t => t.quadrant === quadrant);
+          if (quadrantTasks.length > 0) {
+            const quadrantName = {
+              q1: 'Urgent & Important (Do First)',
+              q2: 'Important, Not Urgent (Schedule)',
+              q3: 'Urgent, Not Important (Delegate)',
+              q4: 'Neither Urgent nor Important (Eliminate)'
+            }[quadrant];
+
+            snapshot += `${quadrantName}:\n`;
+            quadrantTasks.forEach(task => {
+              snapshot += `✓ ${task.title}\n`;
+              if (task.description) {
+                snapshot += `  ${task.description}\n`;
+              }
+            });
+            snapshot += '\n';
+          }
+        });
+      }
+
+      if (shoutouts.length > 0) {
+        snapshot += `SHOUTOUTS:\n\n`;
+        shoutouts.forEach(shoutout => {
+          snapshot += `❤ ${shoutout.colleague}\n`;
+          snapshot += `  ${shoutout.note}\n\n`;
+        });
+      }
 
       // Download the file
       const blob = new Blob([snapshot], { type: 'text/plain' });
@@ -327,13 +377,15 @@ const TaskPrioritizer = () => {
     }
 
     setTasks(tasks.filter(t => !t.completed));
+    setShoutouts([]);
+    localStorage.setItem('taskPrioritizerShoutouts', JSON.stringify([]));
     const today = new Date();
     const monday = new Date(today);
     monday.setDate(today.getDate() - today.getDay() + 1);
     const newWeekStart = monday.toISOString().split('T')[0];
     setWeekStart(newWeekStart);
     localStorage.setItem('taskPrioritizerWeekStart', newWeekStart);
-    
+
     setShowEndWeekModal(false);
   };
 
@@ -374,7 +426,8 @@ const TaskPrioritizer = () => {
       exportDate: new Date().toISOString(),
       tasks: tasks,
       weekStart: weekStart,
-      weeklyHistory: weeklyHistory
+      weeklyHistory: weeklyHistory,
+      shoutouts: shoutouts
     };
     
     const dataStr = JSON.stringify(backup, null, 2);
@@ -408,11 +461,13 @@ const TaskPrioritizer = () => {
         setTasks(backup.tasks || []);
         setWeekStart(backup.weekStart);
         setWeeklyHistory(backup.weeklyHistory || []);
-        
+        setShoutouts(backup.shoutouts || []);
+
         // Save to localStorage
         localStorage.setItem('taskPrioritizerTasks', JSON.stringify(backup.tasks || []));
         localStorage.setItem('taskPrioritizerWeekStart', backup.weekStart);
         localStorage.setItem('taskPrioritizerHistory', JSON.stringify(backup.weeklyHistory || []));
+        localStorage.setItem('taskPrioritizerShoutouts', JSON.stringify(backup.shoutouts || []));
         
         setRestoreMessage(`✅ Successfully restored backup from ${new Date(backup.exportDate).toLocaleDateString()}`);
         
@@ -644,6 +699,14 @@ const TaskPrioritizer = () => {
               History
             </button>
             <button
+              onClick={() => setShowShoutoutModal(true)}
+              className="bg-pink-500 hover:bg-pink-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
+              title="Add Shoutout"
+            >
+              <Heart size={16} />
+              Shoutout
+            </button>
+            <button
               onClick={() => openAddModal()}
               className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
             >
@@ -680,6 +743,56 @@ const TaskPrioritizer = () => {
             </div>
           </div>
         </div>
+
+        {shoutouts.length > 0 && (
+          <div className="mt-4 bg-white rounded-lg shadow-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Heart size={20} className="text-pink-500" />
+              <h2 className="text-lg font-bold text-gray-900">This Week's Shoutouts</h2>
+            </div>
+            <div className="space-y-3">
+              {shoutouts.map((shoutout) => (
+                <div
+                  key={shoutout.id}
+                  className="bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-lg p-4 relative"
+                >
+                  <button
+                    onClick={() => deleteShoutout(shoutout.id)}
+                    className="absolute top-2 right-2 text-gray-400 hover:text-red-600 transition-colors"
+                    title="Delete shoutout"
+                  >
+                    <X size={16} />
+                  </button>
+                  <div className="pr-6">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Heart size={14} className="text-pink-500 fill-pink-500" />
+                      <h3
+                        className="font-bold text-gray-900"
+                        style={{ fontFamily: "'Indie Flower', cursive" }}
+                      >
+                        {shoutout.colleague}
+                      </h3>
+                    </div>
+                    <p
+                      className="text-gray-700 text-sm"
+                      style={{ fontFamily: "'Indie Flower', cursive" }}
+                    >
+                      {shoutout.note}
+                    </p>
+                    <div className="text-xs text-gray-500 mt-2">
+                      {new Date(shoutout.createdAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit'
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {showAddModal && (
@@ -1116,6 +1229,75 @@ const TaskPrioritizer = () => {
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showShoutoutModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <Heart size={24} className="text-pink-500" />
+                Give a Shoutout
+              </h2>
+              <button
+                onClick={() => {
+                  setShowShoutoutModal(false);
+                  setNewShoutout({ colleague: '', note: '' });
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Colleague Name *
+                </label>
+                <input
+                  type="text"
+                  value={newShoutout.colleague}
+                  onChange={(e) => setNewShoutout({ ...newShoutout, colleague: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  placeholder="Who do you want to recognize?"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Note *
+                </label>
+                <textarea
+                  value={newShoutout.note}
+                  onChange={(e) => setNewShoutout({ ...newShoutout, note: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent resize-none"
+                  rows="4"
+                  placeholder="What did they do that was great?"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={addShoutout}
+                  className="flex-1 bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg transition-colors font-medium"
+                >
+                  Add Shoutout
+                </button>
+                <button
+                  onClick={() => {
+                    setShowShoutoutModal(false);
+                    setNewShoutout({ colleague: '', note: '' });
+                  }}
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>
