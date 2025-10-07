@@ -24,6 +24,7 @@ const TaskPrioritizer = () => {
     const savedTasks = localStorage.getItem('taskPrioritizerTasks');
     const savedWeekStart = localStorage.getItem('taskPrioritizerWeekStart');
     const savedHistory = localStorage.getItem('taskPrioritizerHistory');
+    const hasSeenHelp = localStorage.getItem('taskPrioritizerHasSeenHelp');
 
     if (savedTasks) {
       setTasks(JSON.parse(savedTasks));
@@ -104,6 +105,12 @@ const TaskPrioritizer = () => {
         }
       ];
       setTasks(exampleTasks);
+    }
+
+    // Show help modal for first-time users
+    if (!hasSeenHelp) {
+      setShowHelpModal(true);
+      localStorage.setItem('taskPrioritizerHasSeenHelp', 'true');
     }
 
     if (savedHistory) {
