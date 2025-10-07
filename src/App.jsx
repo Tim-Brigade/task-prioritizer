@@ -661,18 +661,6 @@ const TaskPrioritizer = () => {
           }}
         >
           <div className="relative">
-            <div className="absolute -left-6 top-1/2 -translate-y-1/2 -rotate-90 origin-center">
-              <div className="text-xs font-bold text-gray-600 tracking-wider">
-                IMPORTANT →
-              </div>
-            </div>
-            
-            <div className="absolute -top-6 left-1/2 -translate-x-1/2">
-              <div className="text-xs font-bold text-gray-600 tracking-wider">
-                ← URGENT
-              </div>
-            </div>
-
             <div className="grid grid-cols-2 divide-x-2 divide-gray-300">
               <div className="grid grid-rows-2 divide-y-2 divide-gray-300">
                 <Quadrant quadrant="q1" config={quadrantConfig.q1} />
@@ -1249,6 +1237,20 @@ const TaskPrioritizer = () => {
                   <li>• Export all tasks, history, and settings to a JSON file</li>
                   <li>• Restore data from a previous backup</li>
                   <li>• Transfer data between devices or browsers</li>
+                </ul>
+              </section>
+
+              <section className="bg-purple-50 border border-purple-200 rounded p-4">
+                <h3 className="text-lg font-bold text-purple-900 mb-2">🔒 Privacy & Data Security</h3>
+                <p className="text-purple-800 text-sm mb-2">
+                  Your privacy matters! Task Prioritizer is designed with privacy-first principles:
+                </p>
+                <ul className="space-y-1 text-purple-800 text-sm ml-4">
+                  <li>• <strong>100% Local Storage:</strong> All your tasks and data are stored only on your device in your browser's localStorage</li>
+                  <li>• <strong>No Data Transmission:</strong> Your task data never leaves your computer - nothing is sent to any server</li>
+                  <li>• <strong>No Tracking:</strong> No analytics, no cookies, no data collection of any kind</li>
+                  <li>• <strong>You Own Your Data:</strong> Export anytime using the Backup feature</li>
+                  <li>• <strong>Open Source:</strong> Review the code on GitHub to verify our privacy claims</li>
                 </ul>
               </section>
 
