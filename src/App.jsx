@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Check, Plus, X, Calendar, Download, Edit2, Upload, HelpCircle, Heart } from 'lucide-react';
 
 const TaskPrioritizer = () => {
@@ -18,10 +18,18 @@ const TaskPrioritizer = () => {
   const [editingTask, setEditingTask] = useState(null);
   const [selectedQuadrant, setSelectedQuadrant] = useState(null);
   const [draggedTask, setDraggedTask] = useState(null);
+  const [dragOverQuadrant, setDragOverQuadrant] = useState(null);
   const [weekStart, setWeekStart] = useState('');
   const [shoutouts, setShoutouts] = useState([]);
   const [showShoutoutModal, setShowShoutoutModal] = useState(false);
   const [newShoutout, setNewShoutout] = useState({ colleague: '', note: '' });
+
+  // Use ref for drag state to avoid re-renders during drag
+  const draggedTaskRef = useRef(null);
+  const isDraggingRef = useRef(false);
+
+  // Undo history
+  const [undoHistory, setUndoHistory] = useState([]);
 
   useEffect(() => {
     const savedTasks = localStorage.getItem('taskPrioritizerTasks');
@@ -156,6 +164,101 @@ const TaskPrioritizer = () => {
     localStorage.setItem('taskPrioritizerShoutouts', JSON.stringify(shoutouts));
   }, [shoutouts]);
 
+  // Keyboard shortcut for undo
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Check for Ctrl+Z (Windows/Linux) or Cmd+Z (Mac)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undoHistory, tasks, shoutouts]);
+
+  const saveToHistory = (action, data) => {
+    setUndoHistory(prev => [...prev, { action, data, timestamp: Date.now() }].slice(-20)); // Keep last 20 actions
+  };
+
+  const handleUndo = () => {
+    if (undoHistory.length === 0) return;
+
+    const lastAction = undoHistory[undoHistory.length - 1];
+
+    switch (lastAction.action) {
+      case 'delete':
+        // Restore deleted task
+        setTasks([...tasks, lastAction.data]);
+        break;
+      case 'complete':
+        // Toggle completion back
+        setTasks(tasks.map(task =>
+          task.id === lastAction.data.id ? lastAction.data : task
+        ));
+        break;
+      case 'edit':
+        // Restore old task state
+        setTasks(tasks.map(task =>
+          task.id === lastAction.data.id ? lastAction.data : task
+        ));
+        break;
+      case 'move':
+        // Restore task to old quadrant
+        setTasks(tasks.map(task =>
+          task.id === lastAction.data.id ? lastAction.data : task
+        ));
+        break;
+      case 'deleteShoutout':
+        // Restore deleted shoutout
+        setShoutouts([...shoutouts, lastAction.data]);
+        break;
+      default:
+        break;
+    }
+
+    // Remove the undone action from history
+    setUndoHistory(prev => prev.slice(0, -1));
+  };
+
+  // Auto-promote tasks to urgent side when due date is less than 1 day
+  useEffect(() => {
+    // Skip if currently dragging to avoid conflicts
+    if (isDraggingRef.current) return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const tasksToUpdate = tasks.filter(task => {
+      // Only check incomplete tasks with due dates in non-urgent quadrants (q2, q4)
+      if (task.completed || !task.dueDate || (task.quadrant !== 'q2' && task.quadrant !== 'q4')) {
+        return false;
+      }
+
+      const dueDate = new Date(task.dueDate);
+      dueDate.setHours(0, 0, 0, 0);
+
+      const diffTime = dueDate - today;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      // Promote if due date is less than 1 day away (includes today and overdue)
+      return diffDays < 1;
+    });
+
+    if (tasksToUpdate.length > 0) {
+      setTasks(prevTasks => prevTasks.map(task => {
+        const shouldUpdate = tasksToUpdate.find(t => t.id === task.id);
+        if (shouldUpdate) {
+          // Move Q2 -> Q1 (keep important), Q4 -> Q3 (keep not important)
+          const newQuadrant = task.quadrant === 'q2' ? 'q1' : 'q3';
+          return { ...task, quadrant: newQuadrant };
+        }
+        return task;
+      }));
+    }
+  }, [tasks]);
+
   const getWeekDateRange = () => {
     if (!weekStart) return '';
     const start = new Date(weekStart);
@@ -201,7 +304,12 @@ const TaskPrioritizer = () => {
 
   const updateTask = () => {
     if (!editingTask.title.trim()) return;
-    
+
+    const oldTask = tasks.find(t => t.id === editingTask.id);
+    if (oldTask) {
+      saveToHistory('edit', { ...oldTask });
+    }
+
     setTasks(tasks.map(task =>
       task.id === editingTask.id ? editingTask : task
     ));
@@ -239,13 +347,21 @@ const TaskPrioritizer = () => {
   };
 
   const toggleComplete = (taskId) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId ? { ...task, completed: !task.completed } : task
-    ));
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      saveToHistory('complete', { ...task });
+      setTasks(tasks.map(t =>
+        t.id === taskId ? { ...t, completed: !t.completed } : t
+      ));
+    }
   };
 
   const deleteTask = (taskId) => {
-    setTasks(tasks.filter(task => task.id !== taskId));
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      saveToHistory('delete', { ...task });
+      setTasks(tasks.filter(t => t.id !== taskId));
+    }
   };
 
   const addShoutout = () => {
@@ -264,31 +380,64 @@ const TaskPrioritizer = () => {
   };
 
   const deleteShoutout = (shoutoutId) => {
-    setShoutouts(shoutouts.filter(s => s.id !== shoutoutId));
+    const shoutout = shoutouts.find(s => s.id === shoutoutId);
+    if (shoutout) {
+      saveToHistory('deleteShoutout', { ...shoutout });
+      setShoutouts(shoutouts.filter(s => s.id !== shoutoutId));
+    }
   };
 
   const moveTask = (taskId, newQuadrant) => {
-    setTasks(tasks.map(task =>
-      task.id === taskId ? { ...task, quadrant: newQuadrant } : task
-    ));
+    const task = tasks.find(t => t.id === taskId);
+    if (task && task.quadrant !== newQuadrant) {
+      saveToHistory('move', { ...task });
+      setTasks(tasks.map(t =>
+        t.id === taskId ? { ...t, quadrant: newQuadrant } : t
+      ));
+    }
   };
 
   const handleDragStart = (e, task) => {
-    setDraggedTask(task);
+    isDraggingRef.current = true;
+    draggedTaskRef.current = task;
     e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', task.id);
+
+    // Add visual class directly to the element being dragged
+    e.currentTarget.classList.add('dragging');
   };
 
-  const handleDragOver = (e) => {
+  const handleDragOver = (e, quadrant) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+    setDragOverQuadrant(quadrant);
+  };
+
+  const handleDragLeave = (e) => {
+    // Only clear if we're leaving the quadrant container entirely
+    if (e.currentTarget === e.target) {
+      setDragOverQuadrant(null);
+    }
   };
 
   const handleDrop = (e, quadrant) => {
     e.preventDefault();
-    if (draggedTask) {
-      moveTask(draggedTask.id, quadrant);
-      setDraggedTask(null);
+    if (draggedTaskRef.current) {
+      moveTask(draggedTaskRef.current.id, quadrant);
+      draggedTaskRef.current = null;
+      isDraggingRef.current = false;
+      setDragOverQuadrant(null);
     }
+  };
+
+  const handleDragEnd = (e) => {
+    // Clean up state even if drop was cancelled
+    draggedTaskRef.current = null;
+    isDraggingRef.current = false;
+    setDragOverQuadrant(null);
+
+    // Remove visual class
+    e.currentTarget.classList.remove('dragging');
   };
 
   const endWeek = () => {
@@ -541,12 +690,33 @@ const TaskPrioritizer = () => {
 
   const PostItNote = ({ task, config }) => {
     const rotate = (task.id % 6) - 3;
-    
+
+    const handleDragStartWrapper = (e) => {
+      // Prevent drag if starting from a button
+      const target = e.target;
+      if (target.closest('button') || target.tagName === 'BUTTON') {
+        e.preventDefault();
+        return;
+      }
+      handleDragStart(e, task);
+    };
+
+    const handleDoubleClick = (e) => {
+      // Don't trigger edit if double-clicking on buttons
+      const target = e.target;
+      if (target.closest('button') || target.tagName === 'BUTTON') {
+        return;
+      }
+      openEditModal(task);
+    };
+
     return (
       <div
         draggable
-        onDragStart={(e) => handleDragStart(e, task)}
-        className={`relative cursor-move transition-all hover:scale-105 hover:shadow-xl ${
+        onDragStart={handleDragStartWrapper}
+        onDragEnd={handleDragEnd}
+        onDoubleClick={handleDoubleClick}
+        className={`relative transition-all cursor-grab active:cursor-grabbing hover:scale-105 hover:shadow-xl ${
           task.completed ? 'opacity-60' : ''
         }`}
         style={{
@@ -630,34 +800,52 @@ const TaskPrioritizer = () => {
     );
   };
 
-  const Quadrant = ({ quadrant, config }) => (
-    <div
-      className="relative p-4 flex flex-col"
-      onDragOver={handleDragOver}
-      onDrop={(e) => handleDrop(e, quadrant)}
-    >
-      <div className="absolute top-2 left-2 z-10">
-        <div className="bg-white bg-opacity-80 backdrop-blur-sm px-3 py-1.5 rounded shadow-md">
-          <div className="text-xs font-bold text-gray-800">{config.title}</div>
-          <div className="text-xs text-gray-600">{config.subtitle}</div>
-        </div>
-      </div>
-      
-      <button
-        onClick={() => openAddModal(quadrant)}
-        className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white shadow-lg hover:shadow-xl flex items-center justify-center transition-all hover:scale-110 z-10"
-        title="Add task"
+  const Quadrant = ({ quadrant, config }) => {
+    const isDropTarget = dragOverQuadrant === quadrant;
+    const isDragging = draggedTask !== null;
+
+    return (
+      <div
+        className={`relative p-4 flex flex-col transition-all ${
+          isDragging ? 'ring-2 ring-transparent' : ''
+        } ${isDropTarget ? 'ring-4 ring-blue-400 ring-opacity-50 bg-blue-50 bg-opacity-30' : ''}`}
+        onDragOver={(e) => handleDragOver(e, quadrant)}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => handleDrop(e, quadrant)}
       >
-        <Plus size={18} className="text-gray-700" />
-      </button>
-      
-      <div className="mt-16 grid grid-cols-2 gap-4 auto-rows-min">
-        {getQuadrantTasks(quadrant).map(task => (
-          <PostItNote key={task.id} task={task} config={config} />
-        ))}
+        <div className="absolute top-2 left-2 z-10">
+          <div className={`bg-white bg-opacity-80 backdrop-blur-sm px-3 py-1.5 rounded shadow-md transition-all ${
+            isDropTarget ? 'ring-2 ring-blue-400 scale-105' : ''
+          }`}>
+            <div className="text-xs font-bold text-gray-800">{config.title}</div>
+            <div className="text-xs text-gray-600">{config.subtitle}</div>
+          </div>
+        </div>
+
+        <button
+          onClick={() => openAddModal(quadrant)}
+          className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white shadow-lg hover:shadow-xl flex items-center justify-center transition-all hover:scale-110 z-10"
+          title="Add task"
+        >
+          <Plus size={18} className="text-gray-700" />
+        </button>
+
+        <div className="mt-16 grid grid-cols-2 gap-4 auto-rows-min">
+          {getQuadrantTasks(quadrant).map(task => (
+            <PostItNote key={task.id} task={task} config={config} />
+          ))}
+        </div>
+
+        {isDropTarget && (
+          <div className="absolute inset-0 pointer-events-none border-4 border-dashed border-blue-400 rounded-lg bg-blue-100 bg-opacity-10 flex items-center justify-center">
+            <div className="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg font-medium">
+              Drop here
+            </div>
+          </div>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="min-h-screen p-4" style={{ 
@@ -1378,23 +1566,43 @@ const TaskPrioritizer = () => {
                 <ul className="space-y-2 text-gray-700">
                   <li className="flex items-start gap-2">
                     <span className="text-green-600 font-bold">•</span>
-                    <span><strong>Add Tasks:</strong> Click the "Add Task" button or the + icon in any quadrant</span>
+                    <span><strong>Add Tasks:</strong> Click the "Add Task" button in the header or the + icon in any quadrant</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-green-600 font-bold">•</span>
-                    <span><strong>Drag & Drop:</strong> Move tasks between quadrants by dragging them</span>
+                    <span><strong>Drag & Drop:</strong> Click and drag anywhere on a task (except buttons) to move it between quadrants. Drop zones highlight in blue when hovering.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-green-600 font-bold">•</span>
-                    <span><strong>Due Dates:</strong> Set optional due dates; overdue tasks are highlighted in red</span>
+                    <span><strong>Due Dates:</strong> Set optional due dates; overdue tasks are highlighted in red. Tasks automatically sort by due date within each quadrant.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-green-600 font-bold">•</span>
-                    <span><strong>Complete Tasks:</strong> Click the checkbox to mark tasks as complete</span>
+                    <span><strong>Auto-Promotion:</strong> Tasks on the not urgent side (Q2, Q4) automatically move to the urgent side (Q1, Q3) when their due date is today or overdue</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-green-600 font-bold">•</span>
-                    <span><strong>Edit/Delete:</strong> Use the edit (pencil) or delete (X) icons on each task</span>
+                    <span><strong>Complete Tasks:</strong> Click the checkbox on a task to mark it complete. Completed tasks appear at the bottom with strikethrough text.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold">•</span>
+                    <span><strong>Edit/Delete:</strong> Double-click anywhere on a task to edit, or use the edit (pencil) icon. Use the X icon to delete permanently.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold">•</span>
+                    <span><strong>Shoutouts:</strong> Click "Shoutout" to recognize colleagues' great work. Shoutouts are included in your weekly summary download.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold">•</span>
+                    <span><strong>Weekly Summaries:</strong> Click "End Week" to download a summary of completed tasks and shoutouts, then start fresh for the next week</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold">•</span>
+                    <span><strong>History:</strong> View and download summaries from previous weeks</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold">•</span>
+                    <span><strong>Undo:</strong> Press Ctrl+Z (or Cmd+Z on Mac) to undo your last action (delete, edit, move, or complete). Keeps last 20 actions.</span>
                   </li>
                 </ul>
               </section>
@@ -1463,6 +1671,14 @@ const TaskPrioritizer = () => {
           </div>
         </div>
       )}
+
+      <style>{`
+        .dragging {
+          opacity: 0.5 !important;
+          transform: scale(0.95) !important;
+          box-shadow: 6px 6px 12px rgba(0,0,0,0.3) !important;
+        }
+      `}</style>
     </div>
   );
 };
