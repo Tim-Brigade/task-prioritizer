@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Check, Plus, X, Calendar, Download, Edit2, Upload, HelpCircle, Heart } from 'lucide-react';
+import { Check, Plus, X, Calendar, Download, Edit2, Upload, HelpCircle, Heart, Type } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 
 const TaskPrioritizer = () => {
@@ -11,6 +11,7 @@ const TaskPrioritizer = () => {
   const [showDeleteHistoryModal, setShowDeleteHistoryModal] = useState(false);
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showFontModal, setShowFontModal] = useState(false);
   const [historyToDelete, setHistoryToDelete] = useState(null);
   const [endWeekMessage, setEndWeekMessage] = useState('');
   const [weeklyHistory, setWeeklyHistory] = useState([]);
@@ -26,6 +27,8 @@ const TaskPrioritizer = () => {
   const [newShoutout, setNewShoutout] = useState({ colleague: '', note: '' });
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showEditEmojiPicker, setShowEditEmojiPicker] = useState(false);
+  const [taskFont, setTaskFont] = useState('Indie Flower');
+  const [urgentImportantFont, setUrgentImportantFont] = useState('');
 
   // Use ref for drag state to avoid re-renders during drag
   const draggedTaskRef = useRef(null);
@@ -33,6 +36,19 @@ const TaskPrioritizer = () => {
 
   // Undo history
   const [undoHistory, setUndoHistory] = useState([]);
+
+  // Available fonts
+  const availableFonts = [
+    { name: 'Indie Flower', family: "'Indie Flower', cursive" },
+    { name: 'Caveat', family: "'Caveat', cursive" },
+    { name: 'Patrick Hand', family: "'Patrick Hand', cursive" },
+    { name: 'Architects Daughter', family: "'Architects Daughter', cursive" },
+    { name: 'Helvetica', family: "Helvetica, Arial, sans-serif" },
+    { name: 'Roboto', family: "'Roboto', sans-serif" },
+    { name: 'Open Sans', family: "'Open Sans', sans-serif" },
+    { name: 'Courier Prime', family: "'Courier Prime', monospace" },
+    { name: 'Merriweather', family: "'Merriweather', serif" },
+  ];
 
   // Auto-select icon based on task title
   const getAutoIcon = (title) => {
@@ -169,6 +185,8 @@ const TaskPrioritizer = () => {
     const savedHistory = localStorage.getItem('taskPrioritizerHistory');
     const savedShoutouts = localStorage.getItem('taskPrioritizerShoutouts');
     const hasSeenHelp = localStorage.getItem('taskPrioritizerHasSeenHelp');
+    const savedTaskFont = localStorage.getItem('taskPrioritizerTaskFont');
+    const savedUrgentImportantFont = localStorage.getItem('taskPrioritizerUrgentImportantFont');
 
     if (savedTasks) {
       setTasks(JSON.parse(savedTasks));
@@ -272,7 +290,15 @@ const TaskPrioritizer = () => {
     if (savedShoutouts) {
       setShoutouts(JSON.parse(savedShoutouts));
     }
-    
+
+    if (savedTaskFont) {
+      setTaskFont(savedTaskFont);
+    }
+
+    if (savedUrgentImportantFont) {
+      setUrgentImportantFont(savedUrgentImportantFont);
+    }
+
     if (savedWeekStart) {
       setWeekStart(savedWeekStart);
     } else {
@@ -283,12 +309,13 @@ const TaskPrioritizer = () => {
       setWeekStart(weekStartStr);
       localStorage.setItem('taskPrioritizerWeekStart', weekStartStr);
     }
-    
+
+    // Load all Google Fonts
     const link = document.createElement('link');
-    link.href = 'https://fonts.googleapis.com/css2?family=Indie+Flower&display=swap';
+    link.href = 'https://fonts.googleapis.com/css2?family=Indie+Flower&family=Caveat:wght@400;700&family=Patrick+Hand&family=Architects+Daughter&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Courier+Prime:wght@400;700&family=Merriweather:wght@400;700&display=swap';
     link.rel = 'stylesheet';
     document.head.appendChild(link);
-    
+
     return () => {
       if (document.head.contains(link)) {
         document.head.removeChild(link);
@@ -303,6 +330,14 @@ const TaskPrioritizer = () => {
   useEffect(() => {
     localStorage.setItem('taskPrioritizerShoutouts', JSON.stringify(shoutouts));
   }, [shoutouts]);
+
+  useEffect(() => {
+    localStorage.setItem('taskPrioritizerTaskFont', taskFont);
+  }, [taskFont]);
+
+  useEffect(() => {
+    localStorage.setItem('taskPrioritizerUrgentImportantFont', urgentImportantFont);
+  }, [urgentImportantFont]);
 
   // Keyboard shortcut for undo
   useEffect(() => {
@@ -789,6 +824,16 @@ const TaskPrioritizer = () => {
     event.target.value = '';
   };
 
+  const getTaskFontFamily = (quadrant) => {
+    // Use urgentImportantFont for Q1 if set, otherwise use taskFont
+    if (quadrant === 'q1' && urgentImportantFont) {
+      const font = availableFonts.find(f => f.name === urgentImportantFont);
+      return font ? font.family : availableFonts.find(f => f.name === taskFont)?.family || "'Indie Flower', cursive";
+    }
+    const font = availableFonts.find(f => f.name === taskFont);
+    return font ? font.family : "'Indie Flower', cursive";
+  };
+
   const getQuadrantTasks = (quadrant) => {
     return tasks
       .filter(t => t.quadrant === quadrant)
@@ -916,16 +961,16 @@ const TaskPrioritizer = () => {
               className={`font-handwriting text-sm font-medium text-gray-900 break-words mb-1 ${
                 task.completed ? 'line-through' : ''
               }`}
-              style={{ fontFamily: "'Indie Flower', cursive" }}
+              style={{ fontFamily: getTaskFontFamily(task.quadrant) }}
             >
               {task.title}
             </div>
             {task.description && (
-              <div 
+              <div
                 className={`text-xs text-gray-700 break-words ${
                   task.completed ? 'line-through' : ''
                 }`}
-                style={{ fontFamily: "'Indie Flower', cursive" }}
+                style={{ fontFamily: getTaskFontFamily(task.quadrant) }}
               >
                 {task.description}
               </div>
@@ -941,7 +986,7 @@ const TaskPrioritizer = () => {
                 : 'text-gray-700'
             }`}>
               <Calendar size={10} />
-              <span style={{ fontFamily: "'Indie Flower', cursive" }}>
+              <span style={{ fontFamily: getTaskFontFamily(task.quadrant) }}>
                 {formatDueDate(task.dueDate)}
               </span>
             </div>
@@ -1019,6 +1064,14 @@ const TaskPrioritizer = () => {
             </div>
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={() => setShowFontModal(true)}
+              className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
+              title="Font Settings"
+            >
+              <Type size={16} />
+              Fonts
+            </button>
             <button
               onClick={() => setShowHelpModal(true)}
               className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
@@ -1887,6 +1940,99 @@ const TaskPrioritizer = () => {
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors font-medium"
               >
                 Got it!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showFontModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <Type size={24} className="text-indigo-500" />
+                Font Settings
+              </h2>
+              <button
+                onClick={() => setShowFontModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Default Task Font
+                </label>
+                <p className="text-xs text-gray-500 mb-3">
+                  This font will be used for all tasks across all quadrants
+                </p>
+                <select
+                  value={taskFont}
+                  onChange={(e) => setTaskFont(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                >
+                  {availableFonts.map(font => (
+                    <option key={font.name} value={font.name}>
+                      {font.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="mt-3 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                  <p className="text-sm text-gray-600 mb-1">Preview:</p>
+                  <div style={{ fontFamily: availableFonts.find(f => f.name === taskFont)?.family }}>
+                    <div className="text-base font-medium">Task Title Example</div>
+                    <div className="text-sm text-gray-700">This is a sample task description</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Urgent & Important (Q1) Font <span className="text-gray-400 font-normal">(Optional)</span>
+                </label>
+                <p className="text-xs text-gray-500 mb-3">
+                  Use a different font for high-priority tasks in the Urgent & Important quadrant. Leave blank to use the default task font.
+                </p>
+                <select
+                  value={urgentImportantFont}
+                  onChange={(e) => setUrgentImportantFont(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                >
+                  <option value="">Use Default Font</option>
+                  {availableFonts.map(font => (
+                    <option key={font.name} value={font.name}>
+                      {font.name}
+                    </option>
+                  ))}
+                </select>
+                {urgentImportantFont && (
+                  <div className="mt-3 p-4 border border-red-200 rounded-lg bg-red-50">
+                    <p className="text-sm text-gray-600 mb-1">Q1 Preview:</p>
+                    <div style={{ fontFamily: availableFonts.find(f => f.name === urgentImportantFont)?.family }}>
+                      <div className="text-base font-medium">Urgent Task Title</div>
+                      <div className="text-sm text-gray-700">High priority task description</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                <p className="text-xs text-blue-800">
+                  <strong>💡 Tip:</strong> Use a bold or distinct font for Q1 tasks to make urgent and important items stand out visually!
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => setShowFontModal(false)}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors font-medium"
+              >
+                Done
               </button>
             </div>
           </div>
