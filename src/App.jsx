@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Check, Plus, X, Calendar, Download, Edit2, Upload, HelpCircle, Heart } from 'lucide-react';
+import EmojiPicker from 'emoji-picker-react';
 
 const TaskPrioritizer = () => {
   const [tasks, setTasks] = useState([]);
@@ -14,7 +15,7 @@ const TaskPrioritizer = () => {
   const [endWeekMessage, setEndWeekMessage] = useState('');
   const [weeklyHistory, setWeeklyHistory] = useState([]);
   const [restoreMessage, setRestoreMessage] = useState('');
-  const [newTask, setNewTask] = useState({ title: '', description: '', quadrant: 'q2', dueDate: '' });
+  const [newTask, setNewTask] = useState({ title: '', description: '', quadrant: 'q2', dueDate: '', icon: '📝' });
   const [editingTask, setEditingTask] = useState(null);
   const [selectedQuadrant, setSelectedQuadrant] = useState(null);
   const [draggedTask, setDraggedTask] = useState(null);
@@ -23,6 +24,8 @@ const TaskPrioritizer = () => {
   const [shoutouts, setShoutouts] = useState([]);
   const [showShoutoutModal, setShowShoutoutModal] = useState(false);
   const [newShoutout, setNewShoutout] = useState({ colleague: '', note: '' });
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showEditEmojiPicker, setShowEditEmojiPicker] = useState(false);
 
   // Use ref for drag state to avoid re-renders during drag
   const draggedTaskRef = useRef(null);
@@ -30,6 +33,135 @@ const TaskPrioritizer = () => {
 
   // Undo history
   const [undoHistory, setUndoHistory] = useState([]);
+
+  // Auto-select icon based on task title
+  const getAutoIcon = (title) => {
+    const lowerTitle = title.toLowerCase();
+
+    // Define keyword mappings to emojis
+    const iconMap = [
+      // Development & Tech
+      { keywords: ['bug', 'fix', 'error', 'crash', 'issue', 'debug'], emoji: '🐛' },
+      { keywords: ['code', 'develop', 'program', 'implement', 'build', 'refactor'], emoji: '💻' },
+      { keywords: ['deploy', 'release', 'launch', 'ship', 'publish'], emoji: '🚀' },
+      { keywords: ['test', 'qa', 'quality', 'testing'], emoji: '🧪' },
+      { keywords: ['api', 'endpoint', 'integration', 'webhook'], emoji: '🔌' },
+      { keywords: ['database', 'data', 'sql', 'query', 'schema'], emoji: '🗄️' },
+      { keywords: ['server', 'backend', 'infrastructure'], emoji: '🖥️' },
+      { keywords: ['frontend', 'ui', 'interface'], emoji: '🌐' },
+      { keywords: ['mobile', 'app', 'ios', 'android'], emoji: '📱' },
+      { keywords: ['performance', 'optimize', 'speed'], emoji: '⚡' },
+      { keywords: ['security', 'password', 'auth', 'encryption'], emoji: '🔒' },
+      { keywords: ['backup', 'save', 'archive', 'export'], emoji: '💾' },
+
+      // Design & Creative
+      { keywords: ['design', 'ui', 'ux', 'mockup', 'prototype'], emoji: '🎨' },
+      { keywords: ['logo', 'brand', 'identity'], emoji: '🎭' },
+      { keywords: ['photo', 'image', 'picture'], emoji: '📸' },
+      { keywords: ['video', 'film', 'record'], emoji: '🎬' },
+      { keywords: ['music', 'audio', 'sound'], emoji: '🎵' },
+
+      // Communication
+      { keywords: ['meeting', 'call', 'zoom', 'conference', 'standup'], emoji: '📞' },
+      { keywords: ['email', 'message', 'reply', 'respond', 'inbox'], emoji: '📧' },
+      { keywords: ['chat', 'slack', 'discord', 'teams'], emoji: '💬' },
+      { keywords: ['present', 'demo', 'show', 'pitch'], emoji: '📊' },
+      { keywords: ['interview', 'recruit', 'hire'], emoji: '🎤' },
+      { keywords: ['feedback', 'survey', 'review'], emoji: '📝' },
+
+      // Documentation & Content
+      { keywords: ['document', 'report', 'write', 'draft', 'doc'], emoji: '📄' },
+      { keywords: ['blog', 'article', 'content', 'post'], emoji: '✍️' },
+      { keywords: ['note', 'memo', 'minutes'], emoji: '📋' },
+      { keywords: ['contract', 'agreement', 'legal'], emoji: '📜' },
+
+      // Planning & Management
+      { keywords: ['plan', 'strategy', 'roadmap', 'planning'], emoji: '🗺️' },
+      { keywords: ['goal', 'target', 'objective', 'okr'], emoji: '🎯' },
+      { keywords: ['schedule', 'calendar', 'appointment'], emoji: '📅' },
+      { keywords: ['deadline', 'due', 'time'], emoji: '⏰' },
+      { keywords: ['todo', 'task', 'checklist'], emoji: '✅' },
+      { keywords: ['prioritize', 'organize', 'sort'], emoji: '📌' },
+
+      // Business & Finance
+      { keywords: ['money', 'budget', 'finance', 'pay', 'payment', 'invoice'], emoji: '💰' },
+      { keywords: ['sales', 'revenue', 'profit'], emoji: '💵' },
+      { keywords: ['analytics', 'metrics', 'stats', 'kpi', 'dashboard'], emoji: '📈' },
+      { keywords: ['client', 'customer', 'user', 'account'], emoji: '👤' },
+      { keywords: ['tax', 'expense', 'receipt'], emoji: '🧾' },
+
+      // Team & Collaboration
+      { keywords: ['team', 'collaborate', 'group', 'together'], emoji: '👥' },
+      { keywords: ['delegate', 'assign', 'handoff'], emoji: '🤝' },
+      { keywords: ['onboard', 'train', 'mentor'], emoji: '🎓' },
+
+      // Learning & Research
+      { keywords: ['learn', 'study', 'research', 'read', 'course'], emoji: '📚' },
+      { keywords: ['workshop', 'training', 'seminar'], emoji: '🎓' },
+      { keywords: ['experiment', 'try', 'explore'], emoji: '🔬' },
+
+      // Personal & Wellness
+      { keywords: ['health', 'exercise', 'workout', 'gym', 'fitness'], emoji: '💪' },
+      { keywords: ['doctor', 'medical', 'appointment', 'checkup'], emoji: '🏥' },
+      { keywords: ['eat', 'lunch', 'dinner', 'meal', 'food', 'breakfast'], emoji: '🍽️' },
+      { keywords: ['sleep', 'rest', 'relax'], emoji: '😴' },
+      { keywords: ['meditate', 'mindful', 'zen'], emoji: '🧘' },
+      { keywords: ['water', 'hydrate', 'drink'], emoji: '💧' },
+
+      // Shopping & Errands
+      { keywords: ['shop', 'buy', 'purchase', 'order', 'amazon'], emoji: '🛒' },
+      { keywords: ['grocery', 'groceries', 'supermarket'], emoji: '🥕' },
+      { keywords: ['gift', 'present', 'birthday'], emoji: '🎁' },
+      { keywords: ['return', 'exchange', 'refund'], emoji: '↩️' },
+
+      // Home & Lifestyle
+      { keywords: ['clean', 'organize', 'tidy', 'declutter'], emoji: '🧹' },
+      { keywords: ['laundry', 'wash', 'clothes'], emoji: '🧺' },
+      { keywords: ['cook', 'recipe', 'kitchen'], emoji: '👨‍🍳' },
+      { keywords: ['garden', 'plant', 'grow'], emoji: '🌱' },
+      { keywords: ['pet', 'dog', 'cat', 'vet'], emoji: '🐾' },
+      { keywords: ['car', 'vehicle', 'drive', 'maintenance'], emoji: '🚗' },
+
+      // Travel & Events
+      { keywords: ['travel', 'trip', 'vacation', 'holiday'], emoji: '✈️' },
+      { keywords: ['flight', 'plane', 'airport'], emoji: '🛫' },
+      { keywords: ['hotel', 'booking', 'reservation'], emoji: '🏨' },
+      { keywords: ['event', 'conference', 'summit'], emoji: '🎪' },
+
+      // Urgent & Important
+      { keywords: ['urgent', 'critical', 'emergency', 'asap', 'important'], emoji: '🚨' },
+      { keywords: ['fire', 'crisis', 'alert'], emoji: '🔥' },
+      { keywords: ['warning', 'caution', 'attention'], emoji: '⚠️' },
+
+      // Positive & Achievement
+      { keywords: ['celebrate', 'party', 'success', 'win', 'achievement'], emoji: '🎉' },
+      { keywords: ['complete', 'done', 'finish', 'accomplish'], emoji: '✨' },
+      { keywords: ['launch', 'premiere', 'debut'], emoji: '🎊' },
+      { keywords: ['milestone', 'achievement', 'badge'], emoji: '🏆' },
+
+      // Miscellaneous
+      { keywords: ['idea', 'brainstorm', 'creative', 'innovation'], emoji: '💡' },
+      { keywords: ['question', 'help', 'support'], emoji: '❓' },
+      { keywords: ['phone', 'mobile', 'call'], emoji: '☎️' },
+      { keywords: ['print', 'printer', 'copy'], emoji: '🖨️' },
+      { keywords: ['scan', 'scanner'], emoji: '📠' },
+      { keywords: ['book', 'library', 'novel'], emoji: '📖' },
+      { keywords: ['news', 'article', 'update'], emoji: '📰' },
+      { keywords: ['weather', 'forecast', 'climate'], emoji: '🌤️' },
+      { keywords: ['repair', 'maintenance', 'service'], emoji: '🔧' },
+      { keywords: ['renew', 'renewal', 'subscription'], emoji: '🔄' },
+    ];
+
+    // Find first matching keyword
+    for (const { keywords, emoji } of iconMap) {
+      if (keywords.some(keyword => lowerTitle.includes(keyword))) {
+        return emoji;
+      }
+    }
+
+    // Default icon
+    return '📝';
+  };
 
   useEffect(() => {
     const savedTasks = localStorage.getItem('taskPrioritizerTasks');
@@ -50,7 +182,8 @@ const TaskPrioritizer = () => {
           quadrant: 'q1',
           dueDate: new Date().toISOString().split('T')[0],
           completed: false,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          icon: '🐛'
         },
         {
           id: Date.now() + 2,
@@ -59,7 +192,8 @@ const TaskPrioritizer = () => {
           quadrant: 'q2',
           dueDate: '',
           completed: false,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          icon: '📚'
         },
         {
           id: Date.now() + 3,
@@ -68,7 +202,8 @@ const TaskPrioritizer = () => {
           quadrant: 'q2',
           dueDate: '',
           completed: false,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          icon: '🗺️'
         },
         {
           id: Date.now() + 4,
@@ -77,7 +212,8 @@ const TaskPrioritizer = () => {
           quadrant: 'q3',
           dueDate: '',
           completed: false,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          icon: '📧'
         },
         {
           id: Date.now() + 5,
@@ -86,7 +222,8 @@ const TaskPrioritizer = () => {
           quadrant: 'q3',
           dueDate: '',
           completed: false,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          icon: '📞'
         },
         {
           id: Date.now() + 6,
@@ -95,7 +232,8 @@ const TaskPrioritizer = () => {
           quadrant: 'q4',
           dueDate: '',
           completed: false,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          icon: '📱'
         },
         {
           id: Date.now() + 7,
@@ -104,7 +242,8 @@ const TaskPrioritizer = () => {
           quadrant: 'q2',
           dueDate: '',
           completed: false,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          icon: '💪'
         },
         {
           id: Date.now() + 8,
@@ -113,7 +252,8 @@ const TaskPrioritizer = () => {
           quadrant: 'q1',
           dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
           completed: false,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          icon: '📊'
         }
       ];
       setTasks(exampleTasks);
@@ -190,29 +330,29 @@ const TaskPrioritizer = () => {
     switch (lastAction.action) {
       case 'delete':
         // Restore deleted task
-        setTasks([...tasks, lastAction.data]);
+        setTasks(prevTasks => [...prevTasks, lastAction.data]);
         break;
       case 'complete':
         // Toggle completion back
-        setTasks(tasks.map(task =>
+        setTasks(prevTasks => prevTasks.map(task =>
           task.id === lastAction.data.id ? lastAction.data : task
         ));
         break;
       case 'edit':
         // Restore old task state
-        setTasks(tasks.map(task =>
+        setTasks(prevTasks => prevTasks.map(task =>
           task.id === lastAction.data.id ? lastAction.data : task
         ));
         break;
       case 'move':
         // Restore task to old quadrant
-        setTasks(tasks.map(task =>
+        setTasks(prevTasks => prevTasks.map(task =>
           task.id === lastAction.data.id ? lastAction.data : task
         ));
         break;
       case 'deleteShoutout':
         // Restore deleted shoutout
-        setShoutouts([...shoutouts, lastAction.data]);
+        setShoutouts(prevShoutouts => [...prevShoutouts, lastAction.data]);
         break;
       default:
         break;
@@ -269,7 +409,7 @@ const TaskPrioritizer = () => {
 
   const addTask = () => {
     if (!newTask.title.trim()) return;
-    
+
     const task = {
       id: Date.now(),
       title: newTask.title,
@@ -277,29 +417,41 @@ const TaskPrioritizer = () => {
       quadrant: newTask.quadrant,
       dueDate: newTask.dueDate,
       completed: false,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      icon: newTask.icon || getAutoIcon(newTask.title)
     };
-    
+
     setTasks([...tasks, task]);
-    setNewTask({ title: '', description: '', quadrant: 'q2', dueDate: '' });
+    setNewTask({ title: '', description: '', quadrant: 'q2', dueDate: '', icon: '📝' });
     setSelectedQuadrant(null);
     setShowAddModal(false);
+    setShowEmojiPicker(false);
+  };
+
+  const handleNewTaskTitleChange = (title) => {
+    setNewTask({ ...newTask, title, icon: getAutoIcon(title) });
+  };
+
+  const handleEditTaskTitleChange = (title) => {
+    setEditingTask({ ...editingTask, title, icon: getAutoIcon(title) });
   };
 
   const openAddModal = (quadrant = null) => {
     if (quadrant) {
-      setNewTask({ title: '', description: '', quadrant: quadrant, dueDate: '' });
+      setNewTask({ title: '', description: '', quadrant: quadrant, dueDate: '', icon: '📝' });
       setSelectedQuadrant(quadrant);
     } else {
-      setNewTask({ title: '', description: '', quadrant: 'q2', dueDate: '' });
+      setNewTask({ title: '', description: '', quadrant: 'q2', dueDate: '', icon: '📝' });
       setSelectedQuadrant(null);
     }
     setShowAddModal(true);
+    setShowEmojiPicker(false);
   };
 
   const openEditModal = (task) => {
-    setEditingTask({ ...task });
+    setEditingTask({ ...task, icon: task.icon || getAutoIcon(task.title) });
     setShowEditModal(true);
+    setShowEditEmojiPicker(false);
   };
 
   const updateTask = () => {
@@ -311,10 +463,11 @@ const TaskPrioritizer = () => {
     }
 
     setTasks(tasks.map(task =>
-      task.id === editingTask.id ? editingTask : task
+      task.id === editingTask.id ? { ...editingTask, icon: editingTask.icon || getAutoIcon(editingTask.title) } : task
     ));
     setEditingTask(null);
     setShowEditModal(false);
+    setShowEditEmojiPicker(false);
   };
 
   const isOverdue = (dueDate) => {
@@ -727,16 +880,19 @@ const TaskPrioritizer = () => {
       >
         <div className="p-3 min-h-[120px] flex flex-col">
           <div className="flex items-start justify-between gap-2 mb-2">
-            <button
-              onClick={() => toggleComplete(task.id)}
-              className={`flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                task.completed
-                  ? 'bg-green-600 border-green-600'
-                  : 'border-gray-600 hover:border-green-600 bg-white bg-opacity-50'
-              }`}
-            >
-              {task.completed && <Check size={12} className="text-white" />}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => toggleComplete(task.id)}
+                className={`flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+                  task.completed
+                    ? 'bg-green-600 border-green-600'
+                    : 'border-gray-600 hover:border-green-600 bg-white bg-opacity-50'
+                }`}
+              >
+                {task.completed && <Check size={12} className="text-white" />}
+              </button>
+              <span className="text-xl" title="Task icon">{task.icon || '📝'}</span>
+            </div>
             <div className="flex gap-1 flex-shrink-0">
               <button
                 onClick={() => openEditModal(task)}
@@ -754,9 +910,9 @@ const TaskPrioritizer = () => {
               </button>
             </div>
           </div>
-          
+
           <div className="flex-1">
-            <div 
+            <div
               className={`font-handwriting text-sm font-medium text-gray-900 break-words mb-1 ${
                 task.completed ? 'line-through' : ''
               }`}
@@ -1002,12 +1158,41 @@ const TaskPrioritizer = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Icon
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    className="text-3xl px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    title="Click to change icon"
+                  >
+                    {newTask.icon}
+                  </button>
+                  <span className="text-xs text-gray-500">Auto-selected based on title</span>
+                </div>
+                {showEmojiPicker && (
+                  <div className="mt-2 relative z-10">
+                    <EmojiPicker
+                      onEmojiClick={(emojiData) => {
+                        setNewTask({ ...newTask, icon: emojiData.emoji });
+                        setShowEmojiPicker(false);
+                      }}
+                      width="100%"
+                      height={350}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Task Title *
                 </label>
                 <input
                   type="text"
                   value={newTask.title}
-                  onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                  onChange={(e) => handleNewTaskTitleChange(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Enter task title"
                   autoFocus
@@ -1067,6 +1252,7 @@ const TaskPrioritizer = () => {
                   onClick={() => {
                     setShowAddModal(false);
                     setSelectedQuadrant(null);
+                    setShowEmojiPicker(false);
                   }}
                   className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg transition-colors"
                 >
@@ -1087,6 +1273,7 @@ const TaskPrioritizer = () => {
                 onClick={() => {
                   setShowEditModal(false);
                   setEditingTask(null);
+                  setShowEditEmojiPicker(false);
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >
@@ -1097,12 +1284,41 @@ const TaskPrioritizer = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Icon
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowEditEmojiPicker(!showEditEmojiPicker)}
+                    className="text-3xl px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    title="Click to change icon"
+                  >
+                    {editingTask.icon || '📝'}
+                  </button>
+                  <span className="text-xs text-gray-500">Auto-selected based on title</span>
+                </div>
+                {showEditEmojiPicker && (
+                  <div className="mt-2 relative z-10">
+                    <EmojiPicker
+                      onEmojiClick={(emojiData) => {
+                        setEditingTask({ ...editingTask, icon: emojiData.emoji });
+                        setShowEditEmojiPicker(false);
+                      }}
+                      width="100%"
+                      height={350}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Task Title *
                 </label>
                 <input
                   type="text"
                   value={editingTask.title}
-                  onChange={(e) => setEditingTask({ ...editingTask, title: e.target.value })}
+                  onChange={(e) => handleEditTaskTitleChange(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   autoFocus
                 />
@@ -1159,6 +1375,7 @@ const TaskPrioritizer = () => {
                   onClick={() => {
                     setShowEditModal(false);
                     setEditingTask(null);
+                    setShowEditEmojiPicker(false);
                   }}
                   className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg transition-colors"
                 >
@@ -1564,6 +1781,10 @@ const TaskPrioritizer = () => {
               <section>
                 <h3 className="text-lg font-bold text-gray-900 mb-2">✨ Key Features</h3>
                 <ul className="space-y-2 text-gray-700">
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold">•</span>
+                    <span><strong>Task Icons:</strong> Colorful icons are automatically assigned based on task titles (e.g., 🐛 for "bug", 📧 for "email"). Click the icon in the Add/Edit modal to choose a different one.</span>
+                  </li>
                   <li className="flex items-start gap-2">
                     <span className="text-green-600 font-bold">•</span>
                     <span><strong>Add Tasks:</strong> Click the "Add Task" button in the header or the + icon in any quadrant</span>
