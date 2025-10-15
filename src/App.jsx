@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Check, Plus, X, Calendar, Download, Edit2, Upload, HelpCircle, Heart, Type } from 'lucide-react';
+import { Check, Plus, X, Calendar, Download, Edit2, Upload, HelpCircle, Heart, Type, AlertTriangle } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 
 const TaskPrioritizer = () => {
@@ -29,6 +29,8 @@ const TaskPrioritizer = () => {
   const [showEditEmojiPicker, setShowEditEmojiPicker] = useState(false);
   const [taskFont, setTaskFont] = useState('Indie Flower');
   const [urgentImportantFont, setUrgentImportantFont] = useState('');
+  const [showQ1OverloadModal, setShowQ1OverloadModal] = useState(false);
+  const [hasSeenQ1Warning, setHasSeenQ1Warning] = useState(false);
 
   // Use ref for drag state to avoid re-renders during drag
   const draggedTaskRef = useRef(null);
@@ -36,6 +38,9 @@ const TaskPrioritizer = () => {
 
   // Undo history
   const [undoHistory, setUndoHistory] = useState([]);
+
+  // Q1 overload threshold
+  const Q1_OVERLOAD_THRESHOLD = 6;
 
   // Available fonts
   const availableFonts = [
@@ -433,6 +438,17 @@ const TaskPrioritizer = () => {
       }));
     }
   }, [tasks]);
+
+  // Monitor Q1 tasks for overload
+  useEffect(() => {
+    const q1Tasks = tasks.filter(t => t.quadrant === 'q1' && !t.completed);
+
+    // Show warning if Q1 is overloaded and user hasn't seen it this session
+    if (q1Tasks.length >= Q1_OVERLOAD_THRESHOLD && !hasSeenQ1Warning) {
+      setShowQ1OverloadModal(true);
+      setHasSeenQ1Warning(true);
+    }
+  }, [tasks, hasSeenQ1Warning]);
 
   const getWeekDateRange = () => {
     if (!weekStart) return '';
@@ -889,6 +905,12 @@ const TaskPrioritizer = () => {
   const PostItNote = ({ task, config }) => {
     const rotate = (task.id % 6) - 3;
 
+    // Check if this is a top priority Q1 task (top 3 incomplete tasks)
+    const q1Tasks = getQuadrantTasks('q1');
+    const incompleteQ1Tasks = q1Tasks.filter(t => !t.completed);
+    const taskIndex = incompleteQ1Tasks.findIndex(t => t.id === task.id);
+    const isTopPriority = task.quadrant === 'q1' && !task.completed && taskIndex >= 0 && taskIndex < 3;
+
     const handleDragStartWrapper = (e) => {
       // Prevent drag if starting from a button
       const target = e.target;
@@ -916,11 +938,11 @@ const TaskPrioritizer = () => {
         onDoubleClick={handleDoubleClick}
         className={`relative transition-all cursor-grab active:cursor-grabbing hover:scale-105 hover:shadow-xl ${
           task.completed ? 'opacity-60' : ''
-        }`}
+        } ${isTopPriority ? 'ring-2 ring-red-500 ring-offset-2' : ''}`}
         style={{
           transform: `rotate(${rotate}deg)`,
           backgroundColor: config.color,
-          boxShadow: '4px 4px 8px rgba(0,0,0,0.15)',
+          boxShadow: isTopPriority ? '6px 6px 12px rgba(239, 68, 68, 0.3)' : '4px 4px 8px rgba(0,0,0,0.15)',
         }}
       >
         <div className="p-3 min-h-[120px] flex flex-col">
@@ -936,7 +958,17 @@ const TaskPrioritizer = () => {
               >
                 {task.completed && <Check size={12} className="text-white" />}
               </button>
-              <span className="text-xl" title="Task icon">{task.icon || '📝'}</span>
+              <div className="relative">
+                <span className="text-xl" title="Task icon">{task.icon || '📝'}</span>
+                {isTopPriority && (
+                  <span
+                    className="absolute -top-1 -right-1 bg-red-600 text-white text-[8px] font-bold rounded-full w-3 h-3 flex items-center justify-center"
+                    title={`Top priority #${taskIndex + 1}`}
+                  >
+                    {taskIndex + 1}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex gap-1 flex-shrink-0">
               <button
@@ -1004,6 +1036,8 @@ const TaskPrioritizer = () => {
   const Quadrant = ({ quadrant, config }) => {
     const isDropTarget = dragOverQuadrant === quadrant;
     const isDragging = draggedTask !== null;
+    const q1Tasks = tasks.filter(t => t.quadrant === 'q1' && !t.completed);
+    const isQ1Overloaded = quadrant === 'q1' && q1Tasks.length >= Q1_OVERLOAD_THRESHOLD;
 
     return (
       <div
@@ -1017,9 +1051,22 @@ const TaskPrioritizer = () => {
         <div className="absolute top-2 left-2 z-10">
           <div className={`bg-white bg-opacity-80 backdrop-blur-sm px-3 py-1.5 rounded shadow-md transition-all ${
             isDropTarget ? 'ring-2 ring-blue-400 scale-105' : ''
-          }`}>
-            <div className="text-xs font-bold text-gray-800">{config.title}</div>
-            <div className="text-xs text-gray-600">{config.subtitle}</div>
+          } ${isQ1Overloaded ? 'ring-2 ring-orange-500' : ''}`}>
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <div className="text-xs font-bold text-gray-800">{config.title}</div>
+                <div className="text-xs text-gray-600">{config.subtitle}</div>
+              </div>
+              {isQ1Overloaded && (
+                <button
+                  onClick={() => setShowQ1OverloadModal(true)}
+                  className="text-orange-600 hover:text-orange-700 transition-colors"
+                  title="Q1 overload warning - click for tips"
+                >
+                  <AlertTriangle size={16} className="animate-pulse" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1940,6 +1987,101 @@ const TaskPrioritizer = () => {
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors font-medium"
               >
                 Got it!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showQ1OverloadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <AlertTriangle size={24} className="text-orange-600" />
+                Q1 Overload Warning
+              </h2>
+              <button
+                onClick={() => setShowQ1OverloadModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded">
+                <p className="text-orange-900 font-semibold mb-2">
+                  You have {tasks.filter(t => t.quadrant === 'q1' && !t.completed).length} incomplete tasks in Q1 (Urgent & Important)
+                </p>
+                <p className="text-orange-800 text-sm">
+                  Having too many urgent and important tasks can lead to stress and burnout. Let's review your priorities.
+                </p>
+              </div>
+
+              <section>
+                <h3 className="font-bold text-gray-900 mb-2 flex items-center gap-2">
+                  🔥 Why Q1 Overload Happens
+                </h3>
+                <p className="text-gray-700 text-sm mb-2">
+                  Research shows that many Q1 crises originate from <strong>neglected Q2 tasks</strong> (Important but Not Urgent).
+                  When we don't invest in planning, prevention, and strategic work, those tasks eventually become urgent fires.
+                </p>
+              </section>
+
+              <section className="bg-blue-50 border border-blue-200 rounded p-4">
+                <h3 className="font-bold text-blue-900 mb-3 flex items-center gap-2">
+                  💡 How to Reduce Q1 Overload
+                </h3>
+                <ul className="space-y-2 text-blue-900 text-sm">
+                  <li className="flex items-start gap-2">
+                    <span className="font-bold text-blue-600">1.</span>
+                    <span><strong>Review each Q1 task:</strong> Are they ALL truly urgent AND important? Some might actually belong in Q2 or Q3.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="font-bold text-blue-600">2.</span>
+                    <span><strong>Focus on top 2-3 priorities:</strong> You can't do everything at once. What MUST be done today?</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="font-bold text-blue-600">3.</span>
+                    <span><strong>Break large tasks into smaller steps:</strong> Overwhelming tasks become manageable when divided into concrete actions.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="font-bold text-blue-600">4.</span>
+                    <span><strong>Schedule Q2 time:</strong> Invest in important-but-not-urgent tasks (planning, prevention, skill-building) to prevent future crises.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="font-bold text-blue-600">5.</span>
+                    <span><strong>Delegate or postpone:</strong> Can any Q1 tasks be delegated to someone else or scheduled for tomorrow?</span>
+                  </li>
+                </ul>
+              </section>
+
+              <section className="bg-green-50 border border-green-200 rounded p-4">
+                <h3 className="font-bold text-green-900 mb-2">
+                  🎯 The Q2 Solution
+                </h3>
+                <p className="text-green-800 text-sm">
+                  Successful people spend most of their time in <strong>Q2</strong> (Important, Not Urgent).
+                  By proactively working on planning, development, and prevention, you'll have fewer Q1 fires to fight.
+                  Make Q2 your priority to reduce stress and achieve your goals.
+                </p>
+              </section>
+
+              <div className="bg-gray-50 border border-gray-200 rounded p-3">
+                <p className="text-xs text-gray-700">
+                  <strong>💭 Remember:</strong> Productivity isn't about doing everything—it's about doing the right things.
+                  Take a deep breath, prioritize ruthlessly, and focus on what truly matters.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <button
+                onClick={() => setShowQ1OverloadModal(false)}
+                className="w-full bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors font-medium"
+              >
+                I'll Review My Priorities
               </button>
             </div>
           </div>
