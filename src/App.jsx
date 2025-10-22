@@ -709,11 +709,25 @@ const TaskPrioritizer = () => {
 
     return (
       <div
+        role="article"
+        aria-label={`Task: ${task.title}${task.completed ? ', completed' : ''}${task.dueDate ? `, due ${formatDueDate(task.dueDate)}` : ''}. In ${config.title} quadrant. ${task.description ? task.description : ''}`}
         draggable
         onDragStart={handleDragStartWrapper}
         onDragEnd={handleDragEnd}
         onDoubleClick={handleDoubleClick}
-        className={`relative transition-all cursor-grab active:cursor-grabbing hover:scale-105 hover:shadow-xl ${
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleDoubleClick();
+          } else if (e.key === 'Delete' || e.key === 'Backspace') {
+            e.preventDefault();
+            if (window.confirm(`Delete task "${task.title}"?`)) {
+              deleteTask(task.id);
+            }
+          }
+        }}
+        className={`relative transition-all cursor-grab active:cursor-grabbing hover:scale-105 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
           task.completed ? 'opacity-60' : ''
         } ${isTopPriority ? 'ring-2 ring-red-500 ring-offset-2' : ''}`}
         style={{
@@ -727,20 +741,22 @@ const TaskPrioritizer = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => toggleComplete(task.id)}
-                className={`flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+                aria-label={task.completed ? `Mark task "${task.title}" as incomplete` : `Mark task "${task.title}" as complete`}
+                className={`flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   task.completed
                     ? 'bg-green-600 border-green-600'
                     : 'border-gray-600 hover:border-green-600 bg-white bg-opacity-50'
                 }`}
               >
-                {task.completed && <Check size={12} className="text-white" />}
+                {task.completed && <Check size={12} className="text-white" aria-hidden="true" />}
               </button>
               <div className="relative">
-                <span className="text-xl" title="Task icon">{task.icon || '📝'}</span>
+                <span className="text-xl" role="img" aria-label={`Task icon: ${task.icon || '📝'}`}>{task.icon || '📝'}</span>
                 {isTopPriority && (
                   <span
                     className="absolute -top-1 -right-1 bg-red-600 text-white text-[8px] font-bold rounded-full w-3 h-3 flex items-center justify-center"
-                    title={`Top priority #${taskIndex + 1}`}
+                    role="status"
+                    aria-label={`Top priority task number ${taskIndex + 1} in this quadrant`}
                   >
                     {taskIndex + 1}
                   </span>
@@ -750,17 +766,17 @@ const TaskPrioritizer = () => {
             <div className="flex gap-1 flex-shrink-0">
               <button
                 onClick={() => openEditModal(task)}
-                className="text-gray-600 hover:text-blue-700 transition-colors"
-                title="Edit"
+                aria-label={`Edit task "${task.title}"`}
+                className="text-gray-600 hover:text-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
               >
-                <Edit2 size={13} />
+                <Edit2 size={13} aria-hidden="true" />
               </button>
               <button
                 onClick={() => deleteTask(task.id)}
-                className="text-gray-600 hover:text-red-700 transition-colors"
-                title="Delete"
+                aria-label={`Delete task "${task.title}"`}
+                className="text-gray-600 hover:text-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 rounded"
               >
-                <X size={15} />
+                <X size={15} aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -818,6 +834,8 @@ const TaskPrioritizer = () => {
 
     return (
       <div
+        role="region"
+        aria-label={`${config.title} - ${config.subtitle}. Contains ${getQuadrantTasks(quadrant).length} tasks.`}
         className={`relative p-4 flex flex-col transition-all ${
           isDragging ? 'ring-2 ring-transparent' : ''
         } ${isDropTarget ? 'ring-4 ring-blue-400 ring-opacity-50 bg-blue-50 bg-opacity-30' : ''}`}
@@ -837,10 +855,10 @@ const TaskPrioritizer = () => {
               {isQ1Overloaded && (
                 <button
                   onClick={() => setShowQ1OverloadModal(true)}
-                  className="text-orange-600 hover:text-orange-700 transition-colors"
-                  title="Q1 overload warning - click for tips"
+                  aria-label="Q1 quadrant is overloaded with 6 or more tasks. Click for tips to manage your workload."
+                  className="text-orange-600 hover:text-orange-700 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 rounded"
                 >
-                  <AlertTriangle size={16} className="animate-pulse" />
+                  <AlertTriangle size={16} className="animate-pulse" aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -849,10 +867,10 @@ const TaskPrioritizer = () => {
 
         <button
           onClick={() => openAddModal(quadrant)}
-          className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white shadow-lg hover:shadow-xl flex items-center justify-center transition-all hover:scale-110 z-10"
-          title="Add task"
+          aria-label={`Add task to ${config.title} quadrant`}
+          className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white shadow-lg hover:shadow-xl flex items-center justify-center transition-all hover:scale-110 z-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <Plus size={18} className="text-gray-700" />
+          <Plus size={18} className="text-gray-700" aria-hidden="true" />
         </button>
 
         <div className="mt-16 grid grid-cols-2 gap-4 auto-rows-min">
@@ -877,74 +895,79 @@ const TaskPrioritizer = () => {
       background: 'linear-gradient(135deg, #f5f5f0 0%, #e8e8e0 100%)',
     }}>
       <div className="max-w-7xl mx-auto">
-        <div className="bg-gradient-to-r from-gray-700 to-gray-800 rounded-lg shadow-2xl p-3 mb-4 flex justify-between items-center">
+        <header role="banner" className="bg-gradient-to-r from-gray-700 to-gray-800 rounded-lg shadow-2xl p-3 mb-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="text-white">
-              <div className="text-lg font-bold">Task Prioritizer</div>
+              <h1 className="text-lg font-bold">Task Prioritizer</h1>
               <div className="text-xs text-gray-300 flex items-center gap-1.5">
-                <Calendar size={12} />
-                Week of {getWeekDateRange(weekStart)}
+                <Calendar size={12} aria-hidden="true" />
+                <span>Week of {getWeekDateRange(weekStart)}</span>
               </div>
             </div>
           </div>
-          <div className="flex gap-2">
+          <nav aria-label="Main navigation" className="flex gap-2">
             <button
               onClick={() => setShowFontModal(true)}
-              className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
-              title="Font Settings"
+              aria-label="Open font settings"
+              className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-300"
             >
-              <Type size={16} />
-              Fonts
+              <Type size={16} aria-hidden="true" />
+              <span>Fonts</span>
             </button>
             <button
               onClick={() => setShowHelpModal(true)}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
-              title="Help"
+              aria-label="Open help and documentation"
+              className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium focus:outline-none focus:ring-2 focus:ring-gray-300"
             >
-              <HelpCircle size={16} />
-              Help
+              <HelpCircle size={16} aria-hidden="true" />
+              <span>Help</span>
             </button>
             <button
               onClick={() => setShowBackupModal(true)}
-              className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
-              title="Backup & Restore"
+              aria-label="Backup and restore your data"
+              className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium focus:outline-none focus:ring-2 focus:ring-orange-300"
             >
-              <Download size={16} />
-              Backup
+              <Download size={16} aria-hidden="true" />
+              <span>Backup</span>
             </button>
             <button
               onClick={() => setShowHistoryModal(true)}
-              className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
+              aria-label="View weekly history"
+              className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-300"
             >
-              <Calendar size={16} />
-              History
+              <Calendar size={16} aria-hidden="true" />
+              <span>History</span>
             </button>
             <button
               onClick={() => setShowShoutoutModal(true)}
-              className="bg-pink-500 hover:bg-pink-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
-              title="Add Shoutout"
+              aria-label="Add a shoutout to recognize a colleague"
+              className="bg-pink-500 hover:bg-pink-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium focus:outline-none focus:ring-2 focus:ring-pink-300"
             >
-              <Heart size={16} />
-              Shoutout
+              <Heart size={16} aria-hidden="true" />
+              <span>Shoutout</span>
             </button>
             <button
               onClick={() => openAddModal()}
-              className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
+              aria-label="Add a new task"
+              className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-300"
             >
-              <Plus size={16} />
-              Add Task
+              <Plus size={16} aria-hidden="true" />
+              <span>Add Task</span>
             </button>
             <button
               onClick={endWeek}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
+              aria-label="End the current week and download summary"
+              className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-300"
             >
-              <Download size={16} />
-              End Week
+              <Download size={16} aria-hidden="true" />
+              <span>End Week</span>
             </button>
-          </div>
-        </div>
+          </nav>
+        </header>
 
-        <div 
+        <main
+          role="main"
+          aria-label="Eisenhower Matrix task board"
           className="rounded-xl shadow-2xl overflow-hidden"
           style={{
             background: 'linear-gradient(to bottom, #ffffff 0%, #f8f8f8 100%)',
@@ -963,30 +986,31 @@ const TaskPrioritizer = () => {
               </div>
             </div>
           </div>
-        </div>
+        </main>
 
         {shoutouts.length > 0 && (
-          <div className="mt-4 bg-white rounded-lg shadow-xl p-4">
+          <section aria-label="This week's shoutouts" className="mt-4 bg-white rounded-lg shadow-xl p-4">
             <div className="flex items-center gap-2 mb-3">
-              <Heart size={20} className="text-pink-500" />
+              <Heart size={20} className="text-pink-500" aria-hidden="true" />
               <h2 className="text-lg font-bold text-gray-900">This Week's Shoutouts</h2>
             </div>
             <div className="space-y-3">
               {shoutouts.map((shoutout) => (
-                <div
+                <article
                   key={shoutout.id}
+                  aria-label={`Shoutout for ${shoutout.colleague}`}
                   className="bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-lg p-4 relative"
                 >
                   <button
                     onClick={() => deleteShoutout(shoutout.id)}
-                    className="absolute top-2 right-2 text-gray-400 hover:text-red-600 transition-colors"
-                    title="Delete shoutout"
+                    aria-label={`Delete shoutout for ${shoutout.colleague}`}
+                    className="absolute top-2 right-2 text-gray-400 hover:text-red-600 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 rounded"
                   >
-                    <X size={16} />
+                    <X size={16} aria-hidden="true" />
                   </button>
                   <div className="pr-6">
                     <div className="flex items-center gap-2 mb-1">
-                      <Heart size={14} className="text-pink-500 fill-pink-500" />
+                      <Heart size={14} className="text-pink-500 fill-pink-500" aria-hidden="true" />
                       <h3
                         className="font-bold text-gray-900"
                         style={{ fontFamily: "'Indie Flower', cursive" }}
@@ -1009,26 +1033,32 @@ const TaskPrioritizer = () => {
                       })}
                     </div>
                   </div>
-                </div>
+                </article>
               ))}
             </div>
-          </div>
+          </section>
         )}
       </div>
 
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-task-title"
+        >
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-900">Add New Task</h2>
+              <h2 id="add-task-title" className="text-xl font-bold text-gray-900">Add New Task</h2>
               <button
                 onClick={() => {
                   setShowAddModal(false);
                   setSelectedQuadrant(null);
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                aria-label="Close add task dialog"
+                className="text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 rounded"
               >
-                <X size={24} />
+                <X size={24} aria-hidden="true" />
               </button>
             </div>
             
