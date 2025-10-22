@@ -1,9 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Check, Plus, X, Calendar, Download, Edit2, Upload, HelpCircle, Heart, Type, AlertTriangle } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
+import { useLocalStorage } from './hooks/useLocalStorage';
+import { getAutoIcon } from './utils/iconMapping';
+import { isOverdue, formatDueDate, getWeekStart, getWeekDateRange } from './utils/dateUtils';
+import { AVAILABLE_FONTS, GOOGLE_FONTS_URL, Q1_OVERLOAD_THRESHOLD } from './constants/fonts';
 
 const TaskPrioritizer = () => {
-  const [tasks, setTasks] = useState([]);
+  // State with localStorage persistence
+  const [tasks, setTasks] = useLocalStorage('taskPrioritizerTasks', []);
+  const [weeklyHistory, setWeeklyHistory] = useLocalStorage('taskPrioritizerHistory', []);
+  const [shoutouts, setShoutouts] = useLocalStorage('taskPrioritizerShoutouts', []);
+  const [taskFont, setTaskFont] = useLocalStorage('taskPrioritizerTaskFont', 'Indie Flower');
+  const [urgentImportantFont, setUrgentImportantFont] = useLocalStorage('taskPrioritizerUrgentImportantFont', '');
+  const [weekStart, setWeekStart] = useLocalStorage('taskPrioritizerWeekStart', '');
+
+  // Regular state (UI-only, no persistence needed)
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showEndWeekModal, setShowEndWeekModal] = useState(false);
@@ -12,191 +24,30 @@ const TaskPrioritizer = () => {
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [showFontModal, setShowFontModal] = useState(false);
+  const [showShoutoutModal, setShowShoutoutModal] = useState(false);
+  const [showQ1OverloadModal, setShowQ1OverloadModal] = useState(false);
   const [historyToDelete, setHistoryToDelete] = useState(null);
   const [endWeekMessage, setEndWeekMessage] = useState('');
-  const [weeklyHistory, setWeeklyHistory] = useState([]);
   const [restoreMessage, setRestoreMessage] = useState('');
   const [newTask, setNewTask] = useState({ title: '', description: '', quadrant: 'q2', dueDate: '', icon: '📝' });
   const [editingTask, setEditingTask] = useState(null);
   const [selectedQuadrant, setSelectedQuadrant] = useState(null);
   const [draggedTask, setDraggedTask] = useState(null);
   const [dragOverQuadrant, setDragOverQuadrant] = useState(null);
-  const [weekStart, setWeekStart] = useState('');
-  const [shoutouts, setShoutouts] = useState([]);
-  const [showShoutoutModal, setShowShoutoutModal] = useState(false);
   const [newShoutout, setNewShoutout] = useState({ colleague: '', note: '' });
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showEditEmojiPicker, setShowEditEmojiPicker] = useState(false);
-  const [taskFont, setTaskFont] = useState('Indie Flower');
-  const [urgentImportantFont, setUrgentImportantFont] = useState('');
-  const [showQ1OverloadModal, setShowQ1OverloadModal] = useState(false);
   const [hasSeenQ1Warning, setHasSeenQ1Warning] = useState(false);
+  const [undoHistory, setUndoHistory] = useState([]);
 
   // Use ref for drag state to avoid re-renders during drag
   const draggedTaskRef = useRef(null);
   const isDraggingRef = useRef(false);
 
-  // Undo history
-  const [undoHistory, setUndoHistory] = useState([]);
-
-  // Q1 overload threshold
-  const Q1_OVERLOAD_THRESHOLD = 6;
-
-  // Available fonts
-  const availableFonts = [
-    { name: 'Indie Flower', family: "'Indie Flower', cursive" },
-    { name: 'Caveat', family: "'Caveat', cursive" },
-    { name: 'Patrick Hand', family: "'Patrick Hand', cursive" },
-    { name: 'Architects Daughter', family: "'Architects Daughter', cursive" },
-    { name: 'Helvetica', family: "Helvetica, Arial, sans-serif" },
-    { name: 'Roboto', family: "'Roboto', sans-serif" },
-    { name: 'Open Sans', family: "'Open Sans', sans-serif" },
-    { name: 'Courier Prime', family: "'Courier Prime', monospace" },
-    { name: 'Merriweather', family: "'Merriweather', serif" },
-  ];
-
-  // Auto-select icon based on task title
-  const getAutoIcon = (title) => {
-    const lowerTitle = title.toLowerCase();
-
-    // Define keyword mappings to emojis
-    const iconMap = [
-      // Development & Tech
-      { keywords: ['bug', 'fix', 'error', 'crash', 'issue', 'debug'], emoji: '🐛' },
-      { keywords: ['code', 'develop', 'program', 'implement', 'build', 'refactor'], emoji: '💻' },
-      { keywords: ['deploy', 'release', 'launch', 'ship', 'publish'], emoji: '🚀' },
-      { keywords: ['test', 'qa', 'quality', 'testing'], emoji: '🧪' },
-      { keywords: ['api', 'endpoint', 'integration', 'webhook'], emoji: '🔌' },
-      { keywords: ['database', 'data', 'sql', 'query', 'schema'], emoji: '🗄️' },
-      { keywords: ['server', 'backend', 'infrastructure'], emoji: '🖥️' },
-      { keywords: ['frontend', 'ui', 'interface'], emoji: '🌐' },
-      { keywords: ['mobile', 'app', 'ios', 'android'], emoji: '📱' },
-      { keywords: ['performance', 'optimize', 'speed'], emoji: '⚡' },
-      { keywords: ['security', 'password', 'auth', 'encryption'], emoji: '🔒' },
-      { keywords: ['backup', 'save', 'archive', 'export'], emoji: '💾' },
-
-      // Design & Creative
-      { keywords: ['design', 'ui', 'ux', 'mockup', 'prototype'], emoji: '🎨' },
-      { keywords: ['logo', 'brand', 'identity'], emoji: '🎭' },
-      { keywords: ['photo', 'image', 'picture'], emoji: '📸' },
-      { keywords: ['video', 'film', 'record'], emoji: '🎬' },
-      { keywords: ['music', 'audio', 'sound'], emoji: '🎵' },
-
-      // Communication
-      { keywords: ['meeting', 'call', 'zoom', 'conference', 'standup'], emoji: '📞' },
-      { keywords: ['email', 'message', 'reply', 'respond', 'inbox'], emoji: '📧' },
-      { keywords: ['chat', 'slack', 'discord', 'teams'], emoji: '💬' },
-      { keywords: ['present', 'demo', 'show', 'pitch'], emoji: '📊' },
-      { keywords: ['interview', 'recruit', 'hire'], emoji: '🎤' },
-      { keywords: ['feedback', 'survey', 'review'], emoji: '📝' },
-
-      // Documentation & Content
-      { keywords: ['document', 'report', 'write', 'draft', 'doc'], emoji: '📄' },
-      { keywords: ['blog', 'article', 'content', 'post'], emoji: '✍️' },
-      { keywords: ['note', 'memo', 'minutes'], emoji: '📋' },
-      { keywords: ['contract', 'agreement', 'legal'], emoji: '📜' },
-
-      // Planning & Management
-      { keywords: ['plan', 'strategy', 'roadmap', 'planning'], emoji: '🗺️' },
-      { keywords: ['goal', 'target', 'objective', 'okr'], emoji: '🎯' },
-      { keywords: ['schedule', 'calendar', 'appointment'], emoji: '📅' },
-      { keywords: ['deadline', 'due', 'time'], emoji: '⏰' },
-      { keywords: ['todo', 'task', 'checklist'], emoji: '✅' },
-      { keywords: ['prioritize', 'organize', 'sort'], emoji: '📌' },
-
-      // Business & Finance
-      { keywords: ['money', 'budget', 'finance', 'pay', 'payment', 'invoice'], emoji: '💰' },
-      { keywords: ['sales', 'revenue', 'profit'], emoji: '💵' },
-      { keywords: ['analytics', 'metrics', 'stats', 'kpi', 'dashboard'], emoji: '📈' },
-      { keywords: ['client', 'customer', 'user', 'account'], emoji: '👤' },
-      { keywords: ['tax', 'expense', 'receipt'], emoji: '🧾' },
-
-      // Team & Collaboration
-      { keywords: ['team', 'collaborate', 'group', 'together'], emoji: '👥' },
-      { keywords: ['delegate', 'assign', 'handoff'], emoji: '🤝' },
-      { keywords: ['onboard', 'train', 'mentor'], emoji: '🎓' },
-
-      // Learning & Research
-      { keywords: ['learn', 'study', 'research', 'read', 'course'], emoji: '📚' },
-      { keywords: ['workshop', 'training', 'seminar'], emoji: '🎓' },
-      { keywords: ['experiment', 'try', 'explore'], emoji: '🔬' },
-
-      // Personal & Wellness
-      { keywords: ['health', 'exercise', 'workout', 'gym', 'fitness'], emoji: '💪' },
-      { keywords: ['doctor', 'medical', 'appointment', 'checkup'], emoji: '🏥' },
-      { keywords: ['eat', 'lunch', 'dinner', 'meal', 'food', 'breakfast'], emoji: '🍽️' },
-      { keywords: ['sleep', 'rest', 'relax'], emoji: '😴' },
-      { keywords: ['meditate', 'mindful', 'zen'], emoji: '🧘' },
-      { keywords: ['water', 'hydrate', 'drink'], emoji: '💧' },
-
-      // Shopping & Errands
-      { keywords: ['shop', 'buy', 'purchase', 'order', 'amazon'], emoji: '🛒' },
-      { keywords: ['grocery', 'groceries', 'supermarket'], emoji: '🥕' },
-      { keywords: ['gift', 'present', 'birthday'], emoji: '🎁' },
-      { keywords: ['return', 'exchange', 'refund'], emoji: '↩️' },
-
-      // Home & Lifestyle
-      { keywords: ['clean', 'organize', 'tidy', 'declutter'], emoji: '🧹' },
-      { keywords: ['laundry', 'wash', 'clothes'], emoji: '🧺' },
-      { keywords: ['cook', 'recipe', 'kitchen'], emoji: '👨‍🍳' },
-      { keywords: ['garden', 'plant', 'grow'], emoji: '🌱' },
-      { keywords: ['pet', 'dog', 'cat', 'vet'], emoji: '🐾' },
-      { keywords: ['car', 'vehicle', 'drive', 'maintenance'], emoji: '🚗' },
-
-      // Travel & Events
-      { keywords: ['travel', 'trip', 'vacation', 'holiday'], emoji: '✈️' },
-      { keywords: ['flight', 'plane', 'airport'], emoji: '🛫' },
-      { keywords: ['hotel', 'booking', 'reservation'], emoji: '🏨' },
-      { keywords: ['event', 'conference', 'summit'], emoji: '🎪' },
-
-      // Urgent & Important
-      { keywords: ['urgent', 'critical', 'emergency', 'asap', 'important'], emoji: '🚨' },
-      { keywords: ['fire', 'crisis', 'alert'], emoji: '🔥' },
-      { keywords: ['warning', 'caution', 'attention'], emoji: '⚠️' },
-
-      // Positive & Achievement
-      { keywords: ['celebrate', 'party', 'success', 'win', 'achievement'], emoji: '🎉' },
-      { keywords: ['complete', 'done', 'finish', 'accomplish'], emoji: '✨' },
-      { keywords: ['launch', 'premiere', 'debut'], emoji: '🎊' },
-      { keywords: ['milestone', 'achievement', 'badge'], emoji: '🏆' },
-
-      // Miscellaneous
-      { keywords: ['idea', 'brainstorm', 'creative', 'innovation'], emoji: '💡' },
-      { keywords: ['question', 'help', 'support'], emoji: '❓' },
-      { keywords: ['phone', 'mobile', 'call'], emoji: '☎️' },
-      { keywords: ['print', 'printer', 'copy'], emoji: '🖨️' },
-      { keywords: ['scan', 'scanner'], emoji: '📠' },
-      { keywords: ['book', 'library', 'novel'], emoji: '📖' },
-      { keywords: ['news', 'article', 'update'], emoji: '📰' },
-      { keywords: ['weather', 'forecast', 'climate'], emoji: '🌤️' },
-      { keywords: ['repair', 'maintenance', 'service'], emoji: '🔧' },
-      { keywords: ['renew', 'renewal', 'subscription'], emoji: '🔄' },
-    ];
-
-    // Find first matching keyword
-    for (const { keywords, emoji } of iconMap) {
-      if (keywords.some(keyword => lowerTitle.includes(keyword))) {
-        return emoji;
-      }
-    }
-
-    // Default icon
-    return '📝';
-  };
-
+  // Initialize app on first load
   useEffect(() => {
-    const savedTasks = localStorage.getItem('taskPrioritizerTasks');
-    const savedWeekStart = localStorage.getItem('taskPrioritizerWeekStart');
-    const savedHistory = localStorage.getItem('taskPrioritizerHistory');
-    const savedShoutouts = localStorage.getItem('taskPrioritizerShoutouts');
-    const hasSeenHelp = localStorage.getItem('taskPrioritizerHasSeenHelp');
-    const savedTaskFont = localStorage.getItem('taskPrioritizerTaskFont');
-    const savedUrgentImportantFont = localStorage.getItem('taskPrioritizerUrgentImportantFont');
-
-    if (savedTasks) {
-      setTasks(JSON.parse(savedTasks));
-    } else {
-      // Load example tasks for first-time users
+    // Load example tasks for first-time users
+    if (tasks.length === 0) {
       const exampleTasks = [
         {
           id: Date.now() + 1,
@@ -282,42 +133,21 @@ const TaskPrioritizer = () => {
       setTasks(exampleTasks);
     }
 
+    // Initialize weekStart if empty
+    if (!weekStart) {
+      setWeekStart(getWeekStart());
+    }
+
     // Show help modal for first-time users
+    const hasSeenHelp = localStorage.getItem('taskPrioritizerHasSeenHelp');
     if (!hasSeenHelp) {
       setShowHelpModal(true);
       localStorage.setItem('taskPrioritizerHasSeenHelp', 'true');
     }
 
-    if (savedHistory) {
-      setWeeklyHistory(JSON.parse(savedHistory));
-    }
-
-    if (savedShoutouts) {
-      setShoutouts(JSON.parse(savedShoutouts));
-    }
-
-    if (savedTaskFont) {
-      setTaskFont(savedTaskFont);
-    }
-
-    if (savedUrgentImportantFont) {
-      setUrgentImportantFont(savedUrgentImportantFont);
-    }
-
-    if (savedWeekStart) {
-      setWeekStart(savedWeekStart);
-    } else {
-      const today = new Date();
-      const monday = new Date(today);
-      monday.setDate(today.getDate() - today.getDay() + 1);
-      const weekStartStr = monday.toISOString().split('T')[0];
-      setWeekStart(weekStartStr);
-      localStorage.setItem('taskPrioritizerWeekStart', weekStartStr);
-    }
-
-    // Load all Google Fonts
+    // Load Google Fonts
     const link = document.createElement('link');
-    link.href = 'https://fonts.googleapis.com/css2?family=Indie+Flower&family=Caveat:wght@400;700&family=Patrick+Hand&family=Architects+Daughter&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Courier+Prime:wght@400;700&family=Merriweather:wght@400;700&display=swap';
+    link.href = GOOGLE_FONTS_URL;
     link.rel = 'stylesheet';
     document.head.appendChild(link);
 
@@ -327,22 +157,6 @@ const TaskPrioritizer = () => {
       }
     };
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem('taskPrioritizerTasks', JSON.stringify(tasks));
-  }, [tasks]);
-
-  useEffect(() => {
-    localStorage.setItem('taskPrioritizerShoutouts', JSON.stringify(shoutouts));
-  }, [shoutouts]);
-
-  useEffect(() => {
-    localStorage.setItem('taskPrioritizerTaskFont', taskFont);
-  }, [taskFont]);
-
-  useEffect(() => {
-    localStorage.setItem('taskPrioritizerUrgentImportantFont', urgentImportantFont);
-  }, [urgentImportantFont]);
 
   // Keyboard shortcut for undo
   useEffect(() => {
@@ -450,14 +264,6 @@ const TaskPrioritizer = () => {
     }
   }, [tasks, hasSeenQ1Warning]);
 
-  const getWeekDateRange = () => {
-    if (!weekStart) return '';
-    const start = new Date(weekStart);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-  };
-
   const addTask = () => {
     if (!newTask.title.trim()) return;
 
@@ -519,35 +325,6 @@ const TaskPrioritizer = () => {
     setEditingTask(null);
     setShowEditModal(false);
     setShowEditEmojiPicker(false);
-  };
-
-  const isOverdue = (dueDate) => {
-    if (!dueDate) return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const due = new Date(dueDate);
-    due.setHours(0, 0, 0, 0);
-    return due < today;
-  };
-
-  const formatDueDate = (dueDate) => {
-    if (!dueDate) return '';
-    const date = new Date(dueDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const due = new Date(dueDate);
-    due.setHours(0, 0, 0, 0);
-    
-    const diffTime = due - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Tomorrow';
-    if (diffDays === -1) return 'Yesterday';
-    if (diffDays < 0) return `${Math.abs(diffDays)}d overdue`;
-    if (diffDays <= 7) return `${diffDays}d`;
-    
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
   const toggleComplete = (taskId) => {
@@ -668,7 +445,7 @@ const TaskPrioritizer = () => {
     let snapshot = '';
 
     if (completedTasks.length > 0 || shoutouts.length > 0) {
-      snapshot = `Weekly Summary - ${getWeekDateRange()}\n\n`;
+      snapshot = `Weekly Summary - ${getWeekDateRange(weekStart)}\n\n`;
 
       if (completedTasks.length > 0) {
         snapshot += `COMPLETED TASKS:\n\n`;
@@ -718,7 +495,7 @@ const TaskPrioritizer = () => {
         id: `${weekStart}-${Date.now()}`, // Unique ID
         weekStart: weekStart,
         weekEnd: new Date(new Date(weekStart).getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        dateRange: getWeekDateRange(),
+        dateRange: getWeekDateRange(weekStart),
         completedCount: completedTasks.length,
         summary: snapshot,
         endedAt: new Date().toISOString()
@@ -843,10 +620,10 @@ const TaskPrioritizer = () => {
   const getTaskFontFamily = (quadrant) => {
     // Use urgentImportantFont for Q1 if set, otherwise use taskFont
     if (quadrant === 'q1' && urgentImportantFont) {
-      const font = availableFonts.find(f => f.name === urgentImportantFont);
-      return font ? font.family : availableFonts.find(f => f.name === taskFont)?.family || "'Indie Flower', cursive";
+      const font = AVAILABLE_FONTS.find(f => f.name === urgentImportantFont);
+      return font ? font.family : AVAILABLE_FONTS.find(f => f.name === taskFont)?.family || "'Indie Flower', cursive";
     }
-    const font = availableFonts.find(f => f.name === taskFont);
+    const font = AVAILABLE_FONTS.find(f => f.name === taskFont);
     return font ? font.family : "'Indie Flower', cursive";
   };
 
@@ -1106,7 +883,7 @@ const TaskPrioritizer = () => {
               <div className="text-lg font-bold">Task Prioritizer</div>
               <div className="text-xs text-gray-300 flex items-center gap-1.5">
                 <Calendar size={12} />
-                Week of {getWeekDateRange()}
+                Week of {getWeekDateRange(weekStart)}
               </div>
             </div>
           </div>
@@ -2117,7 +1894,7 @@ const TaskPrioritizer = () => {
                   onChange={(e) => setTaskFont(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 >
-                  {availableFonts.map(font => (
+                  {AVAILABLE_FONTS.map(font => (
                     <option key={font.name} value={font.name}>
                       {font.name}
                     </option>
@@ -2125,7 +1902,7 @@ const TaskPrioritizer = () => {
                 </select>
                 <div className="mt-3 p-4 border border-gray-200 rounded-lg bg-gray-50">
                   <p className="text-sm text-gray-600 mb-1">Preview:</p>
-                  <div style={{ fontFamily: availableFonts.find(f => f.name === taskFont)?.family }}>
+                  <div style={{ fontFamily: AVAILABLE_FONTS.find(f => f.name === taskFont)?.family }}>
                     <div className="text-base font-medium">Task Title Example</div>
                     <div className="text-sm text-gray-700">This is a sample task description</div>
                   </div>
@@ -2145,7 +1922,7 @@ const TaskPrioritizer = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 >
                   <option value="">Use Default Font</option>
-                  {availableFonts.map(font => (
+                  {AVAILABLE_FONTS.map(font => (
                     <option key={font.name} value={font.name}>
                       {font.name}
                     </option>
@@ -2154,7 +1931,7 @@ const TaskPrioritizer = () => {
                 {urgentImportantFont && (
                   <div className="mt-3 p-4 border border-red-200 rounded-lg bg-red-50">
                     <p className="text-sm text-gray-600 mb-1">Q1 Preview:</p>
-                    <div style={{ fontFamily: availableFonts.find(f => f.name === urgentImportantFont)?.family }}>
+                    <div style={{ fontFamily: AVAILABLE_FONTS.find(f => f.name === urgentImportantFont)?.family }}>
                       <div className="text-base font-medium">Urgent Task Title</div>
                       <div className="text-sm text-gray-700">High priority task description</div>
                     </div>
