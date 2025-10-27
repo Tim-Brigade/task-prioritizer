@@ -450,12 +450,27 @@ const TaskPrioritizer = () => {
     }
   }, [tasks, hasSeenQ1Warning]);
 
+  // Calculate ISO 8601 week number (weeks start on Monday, first week contains Jan 4)
+  const getWeekNumber = (date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    // Set to nearest Thursday: current date + 4 - current day number
+    // Make Sunday's day number 7
+    d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+    // Get first day of year
+    const yearStart = new Date(d.getFullYear(), 0, 1);
+    // Calculate full weeks to nearest Thursday
+    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return weekNo;
+  };
+
   const getWeekDateRange = () => {
     if (!weekStart) return '';
     const start = new Date(weekStart);
     const end = new Date(start);
     end.setDate(start.getDate() + 6);
-    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    const weekNum = getWeekNumber(start);
+    return `Week ${weekNum}: ${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
   };
 
   const addTask = () => {
@@ -707,7 +722,8 @@ const TaskPrioritizer = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `task-summary-${weekStart}.txt`;
+      const weekNum = getWeekNumber(new Date(weekStart));
+      a.download = `task-summary-week${weekNum}-${weekStart}.txt`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -718,6 +734,7 @@ const TaskPrioritizer = () => {
         id: `${weekStart}-${Date.now()}`, // Unique ID
         weekStart: weekStart,
         weekEnd: new Date(new Date(weekStart).getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        weekNumber: getWeekNumber(new Date(weekStart)),
         dateRange: getWeekDateRange(),
         completedCount: completedTasks.length,
         summary: snapshot,
@@ -747,7 +764,8 @@ const TaskPrioritizer = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `task-summary-${entry.weekStart}.txt`;
+    const weekNum = entry.weekNumber || getWeekNumber(new Date(entry.weekStart));
+    a.download = `task-summary-week${weekNum}-${entry.weekStart}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -1106,7 +1124,7 @@ const TaskPrioritizer = () => {
               <div className="text-lg font-bold">Task Prioritizer</div>
               <div className="text-xs text-gray-300 flex items-center gap-1.5">
                 <Calendar size={12} />
-                Week of {getWeekDateRange()}
+                {getWeekDateRange()}
               </div>
             </div>
           </div>
