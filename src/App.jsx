@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Check, Plus, X, Calendar, Download, Edit2, Upload, HelpCircle, Heart, Type, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { Check, Plus, X, Calendar, Download, Edit2, Upload, HelpCircle, Heart, Type, AlertTriangle, Eye, EyeOff, MoreVertical } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 
 const TaskPrioritizer = () => {
@@ -32,6 +32,7 @@ const TaskPrioritizer = () => {
   const [showQ1OverloadModal, setShowQ1OverloadModal] = useState(false);
   const [hasSeenQ1Warning, setHasSeenQ1Warning] = useState(false);
   const [hideCompletedTasks, setHideCompletedTasks] = useState(false);
+  const [showMoreDropdown, setShowMoreDropdown] = useState(false);
 
   // Use ref for drag state to avoid re-renders during drag
   const draggedTaskRef = useRef(null);
@@ -353,6 +354,18 @@ const TaskPrioritizer = () => {
   useEffect(() => {
     localStorage.setItem('taskPrioritizerHideCompletedTasks', hideCompletedTasks.toString());
   }, [hideCompletedTasks]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (showMoreDropdown && !e.target.closest('.more-dropdown-container')) {
+        setShowMoreDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMoreDropdown]);
 
   // Keyboard shortcut for undo
   useEffect(() => {
@@ -1141,43 +1154,11 @@ const TaskPrioritizer = () => {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => setHideCompletedTasks(!hideCompletedTasks)}
-              className={`${hideCompletedTasks ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-500 hover:bg-gray-600'} text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium`}
-              title={hideCompletedTasks ? 'Show completed tasks' : 'Hide completed tasks'}
+              onClick={() => openAddModal()}
+              className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
             >
-              {hideCompletedTasks ? <EyeOff size={16} /> : <Eye size={16} />}
-              {hideCompletedTasks ? 'Show' : 'Hide'} Completed
-            </button>
-            <button
-              onClick={() => setShowFontModal(true)}
-              className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
-              title="Font Settings"
-            >
-              <Type size={16} />
-              Fonts
-            </button>
-            <button
-              onClick={() => setShowHelpModal(true)}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
-              title="Help"
-            >
-              <HelpCircle size={16} />
-              Help
-            </button>
-            <button
-              onClick={() => setShowBackupModal(true)}
-              className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
-              title="Backup & Restore"
-            >
-              <Download size={16} />
-              Backup
-            </button>
-            <button
-              onClick={() => setShowHistoryModal(true)}
-              className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
-            >
-              <Calendar size={16} />
-              History
+              <Plus size={16} />
+              Add Task
             </button>
             <button
               onClick={() => setShowShoutoutModal(true)}
@@ -1188,19 +1169,79 @@ const TaskPrioritizer = () => {
               Shoutout
             </button>
             <button
-              onClick={() => openAddModal()}
-              className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
-            >
-              <Plus size={16} />
-              Add Task
-            </button>
-            <button
               onClick={endWeek}
               className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
             >
               <Download size={16} />
               End Week
             </button>
+            <div className="relative more-dropdown-container">
+              <button
+                onClick={() => setShowMoreDropdown(!showMoreDropdown)}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
+                title="More options"
+              >
+                <MoreVertical size={16} />
+                More
+              </button>
+              {showMoreDropdown && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50">
+                  <button
+                    onClick={() => {
+                      setHideCompletedTasks(!hideCompletedTasks);
+                      setShowMoreDropdown(false);
+                    }}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-gray-700 transition-colors"
+                  >
+                    {hideCompletedTasks ? <EyeOff size={16} className="text-gray-600" /> : <Eye size={16} className="text-gray-600" />}
+                    <span>{hideCompletedTasks ? 'Show' : 'Hide'} Completed</span>
+                  </button>
+                  <div className="border-t border-gray-200 my-1"></div>
+                  <button
+                    onClick={() => {
+                      setShowHistoryModal(true);
+                      setShowMoreDropdown(false);
+                    }}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-gray-700 transition-colors"
+                  >
+                    <Calendar size={16} className="text-purple-500" />
+                    <span>History</span>
+                  </button>
+                  <div className="border-t border-gray-200 my-1"></div>
+                  <button
+                    onClick={() => {
+                      setShowFontModal(true);
+                      setShowMoreDropdown(false);
+                    }}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-gray-700 transition-colors"
+                  >
+                    <Type size={16} className="text-indigo-500" />
+                    <span>Fonts</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowBackupModal(true);
+                      setShowMoreDropdown(false);
+                    }}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-gray-700 transition-colors"
+                  >
+                    <Download size={16} className="text-orange-500" />
+                    <span>Backup & Restore</span>
+                  </button>
+                  <div className="border-t border-gray-200 my-1"></div>
+                  <button
+                    onClick={() => {
+                      setShowHelpModal(true);
+                      setShowMoreDropdown(false);
+                    }}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-gray-700 transition-colors"
+                  >
+                    <HelpCircle size={16} className="text-gray-500" />
+                    <span>Help</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
