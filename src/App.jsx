@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Check, Plus, X, Calendar, Download, Edit2, Upload, HelpCircle, Heart, Type, AlertTriangle } from 'lucide-react';
+import { Check, Plus, X, Calendar, Download, Edit2, Upload, HelpCircle, Heart, Type, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 
 const TaskPrioritizer = () => {
@@ -31,6 +31,7 @@ const TaskPrioritizer = () => {
   const [urgentImportantFont, setUrgentImportantFont] = useState('');
   const [showQ1OverloadModal, setShowQ1OverloadModal] = useState(false);
   const [hasSeenQ1Warning, setHasSeenQ1Warning] = useState(false);
+  const [hideCompletedTasks, setHideCompletedTasks] = useState(false);
 
   // Use ref for drag state to avoid re-renders during drag
   const draggedTaskRef = useRef(null);
@@ -192,6 +193,7 @@ const TaskPrioritizer = () => {
     const hasSeenHelp = localStorage.getItem('taskPrioritizerHasSeenHelp');
     const savedTaskFont = localStorage.getItem('taskPrioritizerTaskFont');
     const savedUrgentImportantFont = localStorage.getItem('taskPrioritizerUrgentImportantFont');
+    const savedHideCompletedTasks = localStorage.getItem('taskPrioritizerHideCompletedTasks');
 
     if (savedTasks) {
       setTasks(JSON.parse(savedTasks));
@@ -304,6 +306,10 @@ const TaskPrioritizer = () => {
       setUrgentImportantFont(savedUrgentImportantFont);
     }
 
+    if (savedHideCompletedTasks) {
+      setHideCompletedTasks(savedHideCompletedTasks === 'true');
+    }
+
     if (savedWeekStart) {
       setWeekStart(savedWeekStart);
     } else {
@@ -343,6 +349,10 @@ const TaskPrioritizer = () => {
   useEffect(() => {
     localStorage.setItem('taskPrioritizerUrgentImportantFont', urgentImportantFont);
   }, [urgentImportantFont]);
+
+  useEffect(() => {
+    localStorage.setItem('taskPrioritizerHideCompletedTasks', hideCompletedTasks.toString());
+  }, [hideCompletedTasks]);
 
   // Keyboard shortcut for undo
   useEffect(() => {
@@ -871,6 +881,7 @@ const TaskPrioritizer = () => {
   const getQuadrantTasks = (quadrant) => {
     return tasks
       .filter(t => t.quadrant === quadrant)
+      .filter(t => !hideCompletedTasks || !t.completed)
       .sort((a, b) => {
         // Sort by: 1) not completed first, 2) has due date, 3) due date ascending, 4) no date
 
@@ -1129,6 +1140,14 @@ const TaskPrioritizer = () => {
             </div>
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={() => setHideCompletedTasks(!hideCompletedTasks)}
+              className={`${hideCompletedTasks ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-500 hover:bg-gray-600'} text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium`}
+              title={hideCompletedTasks ? 'Show completed tasks' : 'Hide completed tasks'}
+            >
+              {hideCompletedTasks ? <EyeOff size={16} /> : <Eye size={16} />}
+              {hideCompletedTasks ? 'Show' : 'Hide'} Completed
+            </button>
             <button
               onClick={() => setShowFontModal(true)}
               className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
