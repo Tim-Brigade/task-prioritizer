@@ -16,7 +16,7 @@ const TaskPrioritizer = () => {
   const [endWeekMessage, setEndWeekMessage] = useState('');
   const [weeklyHistory, setWeeklyHistory] = useState([]);
   const [restoreMessage, setRestoreMessage] = useState('');
-  const [newTask, setNewTask] = useState({ title: '', description: '', quadrant: 'q2', dueDate: '', icon: '📝' });
+  const [newTask, setNewTask] = useState({ title: '', description: '', quadrant: 'q2', dueDate: '', icon: '📝', delegate: '' });
   const [editingTask, setEditingTask] = useState(null);
   const [selectedQuadrant, setSelectedQuadrant] = useState(null);
   const [draggedTask, setDraggedTask] = useState(null);
@@ -33,6 +33,9 @@ const TaskPrioritizer = () => {
   const [hasSeenQ1Warning, setHasSeenQ1Warning] = useState(false);
   const [hideCompletedTasks, setHideCompletedTasks] = useState(false);
   const [showMoreDropdown, setShowMoreDropdown] = useState(false);
+  const [showDelegateModal, setShowDelegateModal] = useState(false);
+  const [delegateTaskId, setDelegateTaskId] = useState(null);
+  const [delegateName, setDelegateName] = useState('');
 
   // Use ref for drag state to avoid re-renders during drag
   const draggedTaskRef = useRef(null);
@@ -507,11 +510,12 @@ const TaskPrioritizer = () => {
       dueDate: newTask.dueDate,
       completed: false,
       createdAt: new Date().toISOString(),
-      icon: newTask.icon || getAutoIcon(newTask.title)
+      icon: newTask.icon || getAutoIcon(newTask.title),
+      delegate: newTask.delegate || ''
     };
 
     setTasks([...tasks, task]);
-    setNewTask({ title: '', description: '', quadrant: 'q2', dueDate: '', icon: '📝' });
+    setNewTask({ title: '', description: '', quadrant: 'q2', dueDate: '', icon: '📝', delegate: '' });
     setSelectedQuadrant(null);
     setShowAddModal(false);
     setShowEmojiPicker(false);
@@ -527,10 +531,10 @@ const TaskPrioritizer = () => {
 
   const openAddModal = (quadrant = null) => {
     if (quadrant) {
-      setNewTask({ title: '', description: '', quadrant: quadrant, dueDate: '', icon: '📝' });
+      setNewTask({ title: '', description: '', quadrant: quadrant, dueDate: '', icon: '📝', delegate: '' });
       setSelectedQuadrant(quadrant);
     } else {
-      setNewTask({ title: '', description: '', quadrant: 'q2', dueDate: '', icon: '📝' });
+      setNewTask({ title: '', description: '', quadrant: 'q2', dueDate: '', icon: '📝', delegate: '' });
       setSelectedQuadrant(null);
     }
     setShowAddModal(true);
@@ -591,10 +595,18 @@ const TaskPrioritizer = () => {
   const toggleComplete = (taskId) => {
     const task = tasks.find(t => t.id === taskId);
     if (task) {
-      saveToHistory('complete', { ...task });
-      setTasks(tasks.map(t =>
-        t.id === taskId ? { ...t, completed: !t.completed } : t
-      ));
+      // If completing a Q3 task and no delegate is set, show delegate modal
+      if (!task.completed && task.quadrant === 'q3' && !task.delegate) {
+        setDelegateTaskId(taskId);
+        setDelegateName('');
+        setShowDelegateModal(true);
+      } else {
+        // Complete the task normally
+        saveToHistory('complete', { ...task });
+        setTasks(tasks.map(t =>
+          t.id === taskId ? { ...t, completed: !t.completed } : t
+        ));
+      }
     }
   };
 
@@ -627,6 +639,22 @@ const TaskPrioritizer = () => {
       saveToHistory('deleteShoutout', { ...shoutout });
       setShoutouts(shoutouts.filter(s => s.id !== shoutoutId));
     }
+  };
+
+  const confirmDelegate = () => {
+    if (!delegateName.trim()) return;
+
+    const task = tasks.find(t => t.id === delegateTaskId);
+    if (task) {
+      saveToHistory('complete', { ...task });
+      setTasks(tasks.map(t =>
+        t.id === delegateTaskId ? { ...t, completed: !t.completed, delegate: delegateName } : t
+      ));
+    }
+
+    setShowDelegateModal(false);
+    setDelegateTaskId(null);
+    setDelegateName('');
   };
 
   const moveTask = (taskId, newQuadrant) => {
@@ -717,7 +745,7 @@ const TaskPrioritizer = () => {
               q1: 'Urgent & Important (Do First)',
               q2: 'Important, Not Urgent (Schedule)',
               q3: 'Urgent, Not Important (Delegate)',
-              q4: 'Neither Urgent nor Important (Eliminate)'
+              q4: 'Neither Urgent nor Important (Eliminate/Communicate)'
             }[quadrant];
 
             snapshot += `${quadrantName}:\n`;
@@ -938,7 +966,7 @@ const TaskPrioritizer = () => {
     },
     q4: {
       title: 'Neither Urgent nor Important',
-      subtitle: 'Eliminate',
+      subtitle: 'Eliminate/Communicate',
       color: '#E0E0E0',
       darkColor: '#9E9E9E'
     }
@@ -1053,8 +1081,8 @@ const TaskPrioritizer = () => {
           
           {task.dueDate && (
             <div className={`text-xs mt-2 flex items-center gap-1 ${
-              task.completed 
-                ? 'text-gray-500 line-through' 
+              task.completed
+                ? 'text-gray-500 line-through'
                 : isOverdue(task.dueDate)
                 ? 'text-red-700 font-bold'
                 : 'text-gray-700'
@@ -1063,6 +1091,15 @@ const TaskPrioritizer = () => {
               <span style={{ fontFamily: getTaskFontFamily(task.quadrant) }}>
                 {formatDueDate(task.dueDate)}
               </span>
+            </div>
+          )}
+
+          {task.quadrant === 'q3' && task.delegate && (
+            <div className={`text-xs mt-2 px-2 py-1 bg-yellow-100 rounded text-yellow-900 ${
+              task.completed ? 'line-through text-yellow-700' : ''
+            }`}
+            style={{ fontFamily: getTaskFontFamily(task.quadrant) }}>
+              Delegated to: {task.delegate}
             </div>
           )}
         </div>
@@ -1418,7 +1455,22 @@ const TaskPrioritizer = () => {
                   <option value="q4">Q4: Neither</option>
                 </select>
               </div>
-              
+
+              {newTask.quadrant === 'q3' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Delegate To (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={newTask.delegate}
+                    onChange={(e) => setNewTask({ ...newTask, delegate: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Name of person to delegate to"
+                  />
+                </div>
+              )}
+
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={addTask}
@@ -1541,7 +1593,22 @@ const TaskPrioritizer = () => {
                   <option value="q4">Q4: Neither</option>
                 </select>
               </div>
-              
+
+              {editingTask.quadrant === 'q3' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Delegate To (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={editingTask.delegate || ''}
+                    onChange={(e) => setEditingTask({ ...editingTask, delegate: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Name of person to delegate to"
+                  />
+                </div>
+              )}
+
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={updateTask}
@@ -1950,8 +2017,8 @@ const TaskPrioritizer = () => {
                     <p className="text-sm text-gray-600">Tasks that demand attention but don't contribute to your goals. Interruptions, some emails.</p>
                   </div>
                   <div className="border-l-4 border-gray-400 pl-3">
-                    <h4 className="font-semibold text-gray-900">Q4: Neither Urgent nor Important (Eliminate)</h4>
-                    <p className="text-sm text-gray-600">Time-wasters and distractions. Consider eliminating these tasks.</p>
+                    <h4 className="font-semibold text-gray-900">Q4: Neither Urgent nor Important (Eliminate/Communicate)</h4>
+                    <p className="text-sm text-gray-600">Time-wasters and distractions. Consider eliminating these tasks or communicating them appropriately.</p>
                   </div>
                 </div>
               </section>
@@ -2254,6 +2321,71 @@ const TaskPrioritizer = () => {
               >
                 Done
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDelegateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Delegate Task</h2>
+              <button
+                onClick={() => {
+                  setShowDelegateModal(false);
+                  setDelegateTaskId(null);
+                  setDelegateName('');
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-gray-700 text-sm">
+                This is an Urgent, Not Important task. Who are you delegating this to?
+              </p>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Delegate To *
+                </label>
+                <input
+                  type="text"
+                  value={delegateName}
+                  onChange={(e) => setDelegateName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                  placeholder="Name of person to delegate to"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && delegateName.trim()) {
+                      confirmDelegate();
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={confirmDelegate}
+                  disabled={!delegateName.trim()}
+                  className="flex-1 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-300 text-white px-4 py-2 rounded-lg transition-colors font-medium"
+                >
+                  Complete & Delegate
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDelegateModal(false);
+                    setDelegateTaskId(null);
+                    setDelegateName('');
+                  }}
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>
