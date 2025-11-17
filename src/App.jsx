@@ -1069,12 +1069,12 @@ const TaskPrioritizer = () => {
             </div>
             {task.description && (
               <div
-                className={`text-xs text-gray-700 break-words whitespace-pre-wrap ${
+                className={`text-xs text-gray-700 ${
                   task.completed ? 'line-through' : ''
                 }`}
                 style={{ fontFamily: getTaskFontFamily(task.quadrant) }}
               >
-                {task.description}
+                {renderDescription(task.description)}
               </div>
             )}
           </div>
@@ -1170,6 +1170,37 @@ const TaskPrioritizer = () => {
             </div>
           </div>
         )}
+      </div>
+    );
+  };
+
+  // Render description with bullet point support
+  const renderDescription = (description) => {
+    const lines = description.split('\n');
+    const hasBullets = lines.some(line => line.trim().startsWith('*'));
+
+    if (!hasBullets) {
+      return <div className="whitespace-pre-wrap">{description}</div>;
+    }
+
+    return (
+      <div className="space-y-1">
+        {lines.map((line, idx) => {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('*')) {
+            return (
+              <div key={idx} className="flex gap-2 ml-2">
+                <span className="flex-shrink-0">•</span>
+                <span>{trimmed.substring(1).trim()}</span>
+              </div>
+            );
+          }
+          // Skip empty lines
+          if (trimmed === '') {
+            return null;
+          }
+          return <div key={idx} className="whitespace-pre-wrap">{line}</div>;
+        })}
       </div>
     );
   };
