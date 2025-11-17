@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Check, Plus, X, Calendar, Download, Edit2, Upload, HelpCircle, Heart, Type, AlertTriangle, Eye, EyeOff, MoreVertical } from 'lucide-react';
+import { Check, Plus, X, Calendar, Download, Edit2, Upload, HelpCircle, Heart, Type, AlertTriangle, Eye, EyeOff, MoreVertical, RotateCcw, RotateCw } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 
 const TaskPrioritizer = () => {
@@ -41,8 +41,9 @@ const TaskPrioritizer = () => {
   const draggedTaskRef = useRef(null);
   const isDraggingRef = useRef(false);
 
-  // Undo history
+  // Undo/Redo history
   const [undoHistory, setUndoHistory] = useState([]);
+  const [redoHistory, setRedoHistory] = useState([]);
 
   // Q1 overload threshold
   const Q1_OVERLOAD_THRESHOLD = 6;
@@ -373,19 +374,31 @@ const TaskPrioritizer = () => {
   // Keyboard shortcut for undo
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Check for Ctrl+Z (Windows/Linux) or Cmd+Z (Mac)
+      // Don't handle undo/redo if modals are open
+      if (showAddModal || showEditModal || showEndWeekModal || showHistoryModal || showDeleteHistoryModal || showBackupModal || showShoutoutModal || showHelpModal || showFontModal || showQ1OverloadModal || showDelegateModal) {
+        return;
+      }
+
+      // Check for Ctrl+Z (Windows/Linux) or Cmd+Z (Mac) - Undo
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         handleUndo();
+      }
+
+      // Check for Ctrl+Shift+Z or Ctrl+Y - Redo
+      if (((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) || ((e.ctrlKey || e.metaKey) && e.key === 'y')) {
+        e.preventDefault();
+        handleRedo();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undoHistory, tasks, shoutouts]);
+  }, [undoHistory, redoHistory, tasks, shoutouts, showAddModal, showEditModal, showEndWeekModal, showHistoryModal, showDeleteHistoryModal, showBackupModal, showShoutoutModal, showHelpModal, showFontModal, showQ1OverloadModal, showDelegateModal]);
 
   const saveToHistory = (action, data) => {
     setUndoHistory(prev => [...prev, { action, data, timestamp: Date.now() }].slice(-20)); // Keep last 20 actions
+    setRedoHistory([]); // Clear redo history when new action is performed
   };
 
   const handleUndo = () => {
@@ -424,8 +437,50 @@ const TaskPrioritizer = () => {
         break;
     }
 
-    // Remove the undone action from history
+    // Move action to redo history
+    setRedoHistory(prev => [...prev, lastAction]);
     setUndoHistory(prev => prev.slice(0, -1));
+  };
+
+  const handleRedo = () => {
+    if (redoHistory.length === 0) return;
+
+    const lastRedoAction = redoHistory[redoHistory.length - 1];
+
+    switch (lastRedoAction.action) {
+      case 'delete':
+        // Delete task again
+        setTasks(prevTasks => prevTasks.filter(task => task.id !== lastRedoAction.data.id));
+        break;
+      case 'complete':
+        // Toggle completion again
+        setTasks(prevTasks => prevTasks.map(task =>
+          task.id === lastRedoAction.data.id ? lastRedoAction.data : task
+        ));
+        break;
+      case 'edit':
+        // Reapply edit
+        setTasks(prevTasks => prevTasks.map(task =>
+          task.id === lastRedoAction.data.id ? lastRedoAction.data : task
+        ));
+        break;
+      case 'move':
+        // Reapply move
+        setTasks(prevTasks => prevTasks.map(task =>
+          task.id === lastRedoAction.data.id ? lastRedoAction.data : task
+        ));
+        break;
+      case 'deleteShoutout':
+        // Delete shoutout again
+        setShoutouts(prevShoutouts => prevShoutouts.filter(shoutout => shoutout.id !== lastRedoAction.data.id));
+        break;
+      default:
+        break;
+    }
+
+    // Move action back to undo history
+    setUndoHistory(prev => [...prev, lastRedoAction]);
+    setRedoHistory(prev => prev.slice(0, -1));
   };
 
   // Auto-promote tasks to urgent side when due date is less than 1 day
@@ -1236,7 +1291,24 @@ const TaskPrioritizer = () => {
               </div>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <button
+              onClick={handleUndo}
+              disabled={undoHistory.length === 0}
+              className="bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white px-2 py-1.5 rounded shadow-lg flex items-center justify-center transition-all"
+              title="Undo (Ctrl+Z)"
+            >
+              <RotateCcw size={16} />
+            </button>
+            <button
+              onClick={handleRedo}
+              disabled={redoHistory.length === 0}
+              className="bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white px-2 py-1.5 rounded shadow-lg flex items-center justify-center transition-all"
+              title="Redo (Ctrl+Shift+Z or Ctrl+Y)"
+            >
+              <RotateCw size={16} />
+            </button>
+            <div className="w-px h-6 bg-gray-600"></div>
             <button
               onClick={() => openAddModal()}
               className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
