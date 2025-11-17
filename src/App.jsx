@@ -1174,12 +1174,13 @@ const TaskPrioritizer = () => {
     );
   };
 
-  // Render description with bullet point support
+  // Render description with bullet point and numbered list support
   const renderDescription = (description) => {
     const lines = description.split('\n');
     const hasBullets = lines.some(line => line.trim().startsWith('*'));
+    const hasNumberedList = lines.some(line => /^\s*\d+\./.test(line));
 
-    if (!hasBullets) {
+    if (!hasBullets && !hasNumberedList) {
       return <div className="whitespace-pre-wrap">{description}</div>;
     }
 
@@ -1187,6 +1188,8 @@ const TaskPrioritizer = () => {
       <div className="space-y-1">
         {lines.map((line, idx) => {
           const trimmed = line.trim();
+
+          // Handle bullet points
           if (trimmed.startsWith('*')) {
             return (
               <div key={idx} className="flex gap-2 ml-2">
@@ -1195,10 +1198,23 @@ const TaskPrioritizer = () => {
               </div>
             );
           }
+
+          // Handle numbered lists
+          const numberedMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
+          if (numberedMatch) {
+            return (
+              <div key={idx} className="flex gap-2 ml-2">
+                <span className="flex-shrink-0">{numberedMatch[1]}.</span>
+                <span>{numberedMatch[2]}</span>
+              </div>
+            );
+          }
+
           // Skip empty lines
           if (trimmed === '') {
             return null;
           }
+
           return <div key={idx} className="whitespace-pre-wrap">{line}</div>;
         })}
       </div>
