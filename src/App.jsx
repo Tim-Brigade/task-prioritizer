@@ -2217,9 +2217,42 @@ const TaskPrioritizer = () => {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-green-600 font-bold">•</span>
-                    <span><strong>Undo:</strong> Press Ctrl+Z (or Cmd+Z on Mac) to undo your last action (delete, edit, move, or complete). Keeps last 20 actions.</span>
+                    <span><strong>Undo/Redo:</strong> Click the undo (↶) and redo (↷) buttons in the header, or use keyboard shortcuts. Keeps last 20 actions.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold">•</span>
+                    <span><strong>Task Descriptions:</strong> Add bullet points using <code className="bg-gray-100 px-1 rounded">*</code> and numbered lists using <code className="bg-gray-100 px-1 rounded">1.</code>, <code className="bg-gray-100 px-1 rounded">2.</code>, etc. Line breaks are preserved for better readability.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold">•</span>
+                    <span><strong>Q1 Overload Warning:</strong> If you have 6 or more incomplete tasks in Q1 (Urgent & Important), a warning appears to help you review priorities and prevent burnout.</span>
                   </li>
                 </ul>
+              </section>
+
+              <section>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">⌨️ Keyboard Shortcuts</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                    <span className="font-semibold text-gray-700">Undo</span>
+                    <code className="bg-white px-2 py-1 rounded border border-gray-300">Ctrl+Z</code>
+                  </div>
+                  <div className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                    <span className="font-semibold text-gray-700">Redo</span>
+                    <code className="bg-white px-2 py-1 rounded border border-gray-300">Ctrl+Shift+Z</code> or <code className="bg-white px-2 py-1 rounded border border-gray-300">Ctrl+Y</code>
+                  </div>
+                  <div className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                    <span className="font-semibold text-gray-700">Add Task (in modal)</span>
+                    <code className="bg-white px-2 py-1 rounded border border-gray-300">Ctrl+Enter</code>
+                  </div>
+                  <div className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                    <span className="font-semibold text-gray-700">Close Modal</span>
+                    <code className="bg-white px-2 py-1 rounded border border-gray-300">Escape</code>
+                  </div>
+                  <p className="text-xs text-gray-600 mt-2">
+                    <strong>Note:</strong> On Mac, use <code className="bg-gray-100 px-1 rounded">Cmd</code> instead of <code className="bg-gray-100 px-1 rounded">Ctrl</code>
+                  </p>
+                </div>
               </section>
 
               <section>
