@@ -1403,35 +1403,32 @@ const TaskPrioritizer = () => {
 
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-900">Add New Task</h2>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-4 max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center mb-3">
+              <h2 className="text-lg font-bold text-gray-900">Add New Task</h2>
               <button
                 onClick={() => {
                   setShowAddModal(false);
                   setSelectedQuadrant(null);
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 flex-shrink-0"
               >
-                <X size={24} />
+                <X size={20} />
               </button>
             </div>
 
-            <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+            <div className="space-y-3 overflow-y-auto flex-1 pr-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Icon
-                </label>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                    className="text-3xl px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="text-2xl px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 transition-colors flex-shrink-0"
                     title="Click to change icon"
                   >
                     {newTask.icon}
                   </button>
-                  <span className="text-xs text-gray-500">Auto-selected based on title</span>
+                  <span className="text-xs text-gray-500">Click to change</span>
                 </div>
                 {showEmojiPicker && (
                   <div className="mt-2 relative z-10">
@@ -1448,53 +1445,71 @@ const TaskPrioritizer = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-gray-700 mb-0.5">
                   Task Title *
                 </label>
                 <input
                   type="text"
                   value={newTask.title}
                   onChange={(e) => handleNewTaskTitleChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onKeyDown={(e) => {
+                    if (e.ctrlKey && e.key === 'Enter') {
+                      addTask();
+                    } else if (e.key === 'Escape') {
+                      setShowAddModal(false);
+                      setSelectedQuadrant(null);
+                      setShowEmojiPicker(false);
+                    }
+                  }}
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Enter task title"
                   autoFocus
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-gray-700 mb-0.5">
                   Description
                 </label>
                 <textarea
                   value={newTask.description}
                   onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  onKeyDown={(e) => {
+                    if (e.ctrlKey && e.key === 'Enter') {
+                      addTask();
+                    } else if (e.key === 'Escape') {
+                      setShowAddModal(false);
+                      setSelectedQuadrant(null);
+                      setShowEmojiPicker(false);
+                    }
+                  }}
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                   rows="3"
                   placeholder="Optional details"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-gray-700 mb-0.5">
                   Due Date
                 </label>
                 <input
                   type="date"
                   value={newTask.dueDate}
                   onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-gray-700 mb-0.5">
                   Quadrant
                 </label>
                 <select
                   value={newTask.quadrant}
                   onChange={(e) => setNewTask({ ...newTask, quadrant: e.target.value })}
                   disabled={selectedQuadrant !== null}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
                 >
                   <option value="q1">Q1: Urgent & Important</option>
                   <option value="q2">Q2: Important, Not Urgent</option>
@@ -1505,23 +1520,23 @@ const TaskPrioritizer = () => {
 
               {newTask.quadrant === 'q3' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-0.5">
                     Delegate To (Optional)
                   </label>
                   <input
                     type="text"
                     value={newTask.delegate}
                     onChange={(e) => setNewTask({ ...newTask, delegate: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Name of person to delegate to"
                   />
                 </div>
               )}
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-2 pt-2">
                 <button
                   onClick={addTask}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 text-sm rounded transition-colors"
                 >
                   Add Task
                 </button>
@@ -1531,7 +1546,7 @@ const TaskPrioritizer = () => {
                     setSelectedQuadrant(null);
                     setShowEmojiPicker(false);
                   }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg transition-colors"
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 text-sm rounded transition-colors"
                 >
                   Cancel
                 </button>
@@ -1543,36 +1558,33 @@ const TaskPrioritizer = () => {
 
       {showEditModal && editingTask && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-900">Edit Task</h2>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-4 max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center mb-3">
+              <h2 className="text-lg font-bold text-gray-900">Edit Task</h2>
               <button
                 onClick={() => {
                   setShowEditModal(false);
                   setEditingTask(null);
                   setShowEditEmojiPicker(false);
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 flex-shrink-0"
               >
-                <X size={24} />
+                <X size={20} />
               </button>
             </div>
 
-            <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+            <div className="space-y-3 overflow-y-auto flex-1 pr-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Icon
-                </label>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setShowEditEmojiPicker(!showEditEmojiPicker)}
-                    className="text-3xl px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="text-2xl px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 transition-colors flex-shrink-0"
                     title="Click to change icon"
                   >
                     {editingTask.icon || '📝'}
                   </button>
-                  <span className="text-xs text-gray-500">Auto-selected based on title</span>
+                  <span className="text-xs text-gray-500">Click to change</span>
                 </div>
                 {showEditEmojiPicker && (
                   <div className="mt-2 relative z-10">
@@ -1589,50 +1601,68 @@ const TaskPrioritizer = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-gray-700 mb-0.5">
                   Task Title *
                 </label>
                 <input
                   type="text"
                   value={editingTask.title}
                   onChange={(e) => handleEditTaskTitleChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onKeyDown={(e) => {
+                    if (e.ctrlKey && e.key === 'Enter') {
+                      saveTask();
+                    } else if (e.key === 'Escape') {
+                      setShowEditModal(false);
+                      setEditingTask(null);
+                      setShowEditEmojiPicker(false);
+                    }
+                  }}
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   autoFocus
                 />
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-gray-700 mb-0.5">
                   Description
                 </label>
                 <textarea
                   value={editingTask.description}
                   onChange={(e) => setEditingTask({ ...editingTask, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  onKeyDown={(e) => {
+                    if (e.ctrlKey && e.key === 'Enter') {
+                      saveTask();
+                    } else if (e.key === 'Escape') {
+                      setShowEditModal(false);
+                      setEditingTask(null);
+                      setShowEditEmojiPicker(false);
+                    }
+                  }}
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                   rows="3"
                 />
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-gray-700 mb-0.5">
                   Due Date
                 </label>
                 <input
                   type="date"
                   value={editingTask.dueDate || ''}
                   onChange={(e) => setEditingTask({ ...editingTask, dueDate: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-gray-700 mb-0.5">
                   Quadrant
                 </label>
                 <select
                   value={editingTask.quadrant}
                   onChange={(e) => setEditingTask({ ...editingTask, quadrant: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="q1">Q1: Urgent & Important</option>
                   <option value="q2">Q2: Important, Not Urgent</option>
@@ -1643,23 +1673,23 @@ const TaskPrioritizer = () => {
 
               {editingTask.quadrant === 'q3' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-0.5">
                     Delegate To (Optional)
                   </label>
                   <input
                     type="text"
                     value={editingTask.delegate || ''}
                     onChange={(e) => setEditingTask({ ...editingTask, delegate: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Name of person to delegate to"
                   />
                 </div>
               )}
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-2 pt-2">
                 <button
                   onClick={updateTask}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 text-sm rounded transition-colors"
                 >
                   Save Changes
                 </button>
@@ -1669,7 +1699,7 @@ const TaskPrioritizer = () => {
                     setEditingTask(null);
                     setShowEditEmojiPicker(false);
                   }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg transition-colors"
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 text-sm rounded transition-colors"
                 >
                   Cancel
                 </button>
