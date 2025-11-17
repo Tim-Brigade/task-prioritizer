@@ -1356,7 +1356,7 @@ const TaskPrioritizer = () => {
 
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 max-h-[90vh] flex flex-col overflow-hidden">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-gray-900">Add New Task</h2>
               <button
@@ -1369,8 +1369,8 @@ const TaskPrioritizer = () => {
                 <X size={24} />
               </button>
             </div>
-            
-            <div className="space-y-4">
+
+            <div className="space-y-4 overflow-y-auto flex-1 pr-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Icon
@@ -1496,7 +1496,7 @@ const TaskPrioritizer = () => {
 
       {showEditModal && editingTask && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 max-h-[90vh] flex flex-col overflow-hidden">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-gray-900">Edit Task</h2>
               <button
@@ -1510,8 +1510,8 @@ const TaskPrioritizer = () => {
                 <X size={24} />
               </button>
             </div>
-            
-            <div className="space-y-4">
+
+            <div className="space-y-4 overflow-y-auto flex-1 pr-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Icon
@@ -2140,7 +2140,7 @@ const TaskPrioritizer = () => {
 
       {showQ1OverloadModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 max-h-[90vh] flex flex-col overflow-hidden">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                 <AlertTriangle size={24} className="text-orange-600" />
@@ -2154,7 +2154,7 @@ const TaskPrioritizer = () => {
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto flex-1 pr-2">
               <div className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded">
                 <p className="text-orange-900 font-semibold mb-2">
                   You have {tasks.filter(t => t.quadrant === 'q1' && !t.completed).length} incomplete tasks in Q1 (Urgent & Important)
@@ -2235,7 +2235,7 @@ const TaskPrioritizer = () => {
 
       {showFontModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 max-h-[90vh] flex flex-col overflow-hidden">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                 <Type size={24} className="text-indigo-500" />
@@ -2249,7 +2249,7 @@ const TaskPrioritizer = () => {
               </button>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-6 overflow-y-auto flex-1 pr-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Default Task Font
