@@ -1069,7 +1069,7 @@ const TaskPrioritizer = () => {
             </div>
             {task.description && (
               <div
-                className={`text-xs text-gray-700 break-words ${
+                className={`text-xs text-gray-700 break-words whitespace-pre-wrap ${
                   task.completed ? 'line-through' : ''
                 }`}
                 style={{ fontFamily: getTaskFontFamily(task.quadrant) }}
