@@ -1682,7 +1682,7 @@ const TaskPrioritizer = () => {
                   onChange={(e) => handleEditTaskTitleChange(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.ctrlKey && e.key === 'Enter') {
-                      saveTask();
+                      updateTask();
                     } else if (e.key === 'Escape') {
                       setShowEditModal(false);
                       setEditingTask(null);
@@ -1703,7 +1703,7 @@ const TaskPrioritizer = () => {
                   onChange={(e) => setEditingTask({ ...editingTask, description: e.target.value })}
                   onKeyDown={(e) => {
                     if (e.ctrlKey && e.key === 'Enter') {
-                      saveTask();
+                      updateTask();
                     } else if (e.key === 'Escape') {
                       setShowEditModal(false);
                       setEditingTask(null);
