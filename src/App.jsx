@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Check, Plus, X, Calendar, Download, Edit2, Upload, HelpCircle, Heart, Type, AlertTriangle, Eye, EyeOff, MoreVertical, RotateCcw, RotateCw } from 'lucide-react';
+import { Check, Plus, X, Calendar, Download, Edit2, Upload, HelpCircle, Heart, Type, AlertTriangle, Eye, EyeOff, MoreVertical, RotateCcw, RotateCw, Target, CheckSquare } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
+import GoalBoard from './components/GoalBoard';
 
 const TaskPrioritizer = () => {
   const [tasks, setTasks] = useState([]);
+  const [goals, setGoals] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showEndWeekModal, setShowEndWeekModal] = useState(false);
@@ -16,7 +18,7 @@ const TaskPrioritizer = () => {
   const [endWeekMessage, setEndWeekMessage] = useState('');
   const [weeklyHistory, setWeeklyHistory] = useState([]);
   const [restoreMessage, setRestoreMessage] = useState('');
-  const [newTask, setNewTask] = useState({ title: '', description: '', quadrant: 'q2', dueDate: '', icon: '📝', delegate: '' });
+  const [newTask, setNewTask] = useState({ title: '', description: '', quadrant: 'q2', dueDate: '', icon: '📝', delegate: '', goalId: null });
   const [editingTask, setEditingTask] = useState(null);
   const [selectedQuadrant, setSelectedQuadrant] = useState(null);
   const [draggedTask, setDraggedTask] = useState(null);
@@ -199,6 +201,7 @@ const TaskPrioritizer = () => {
     const savedTaskFont = localStorage.getItem('taskPrioritizerTaskFont');
     const savedUrgentImportantFont = localStorage.getItem('taskPrioritizerUrgentImportantFont');
     const savedHideCompletedTasks = localStorage.getItem('taskPrioritizerHideCompletedTasks');
+    const savedGoals = localStorage.getItem('goals');
 
     if (savedTasks) {
       setTasks(JSON.parse(savedTasks));
@@ -313,6 +316,15 @@ const TaskPrioritizer = () => {
 
     if (savedHideCompletedTasks) {
       setHideCompletedTasks(savedHideCompletedTasks === 'true');
+    }
+
+    if (savedGoals) {
+      try {
+        setGoals(JSON.parse(savedGoals));
+      } catch (error) {
+        console.error('Failed to parse goals:', error);
+        setGoals([]);
+      }
     }
 
     if (savedWeekStart) {
@@ -566,11 +578,30 @@ const TaskPrioritizer = () => {
       completed: false,
       createdAt: new Date().toISOString(),
       icon: newTask.icon || getAutoIcon(newTask.title),
-      delegate: newTask.delegate || ''
+      delegate: newTask.delegate || '',
+      goalId: newTask.goalId || null
     };
 
     setTasks([...tasks, task]);
-    setNewTask({ title: '', description: '', quadrant: 'q2', dueDate: '', icon: '📝', delegate: '' });
+
+    // Update goal if task is linked to one
+    if (newTask.goalId) {
+      const updatedGoals = goals.map(g => {
+        if (g.id === newTask.goalId) {
+          const linkedTasks = g.linkedTasks || [];
+          return {
+            ...g,
+            linkedTasks: [...linkedTasks, task.id],
+            lastActivity: new Date().toISOString().split('T')[0]
+          };
+        }
+        return g;
+      });
+      setGoals(updatedGoals);
+      localStorage.setItem('goals', JSON.stringify(updatedGoals));
+    }
+
+    setNewTask({ title: '', description: '', quadrant: 'q2', dueDate: '', icon: '📝', delegate: '', goalId: null });
     setSelectedQuadrant(null);
     setShowAddModal(false);
     setShowEmojiPicker(false);
@@ -586,10 +617,10 @@ const TaskPrioritizer = () => {
 
   const openAddModal = (quadrant = null) => {
     if (quadrant) {
-      setNewTask({ title: '', description: '', quadrant: quadrant, dueDate: '', icon: '📝', delegate: '' });
+      setNewTask({ title: '', description: '', quadrant: quadrant, dueDate: '', icon: '📝', delegate: '', goalId: null });
       setSelectedQuadrant(quadrant);
     } else {
-      setNewTask({ title: '', description: '', quadrant: 'q2', dueDate: '', icon: '📝', delegate: '' });
+      setNewTask({ title: '', description: '', quadrant: 'q2', dueDate: '', icon: '📝', delegate: '', goalId: null });
       setSelectedQuadrant(null);
     }
     setShowAddModal(true);
@@ -610,9 +641,39 @@ const TaskPrioritizer = () => {
       saveToHistory('edit', { ...oldTask });
     }
 
+    const updatedTask = { ...editingTask, icon: editingTask.icon || getAutoIcon(editingTask.title) };
     setTasks(tasks.map(task =>
-      task.id === editingTask.id ? { ...editingTask, icon: editingTask.icon || getAutoIcon(editingTask.title) } : task
+      task.id === editingTask.id ? updatedTask : task
     ));
+
+    // Handle goal linking changes
+    const oldGoalId = oldTask?.goalId;
+    const newGoalId = editingTask.goalId;
+
+    if (oldGoalId !== newGoalId) {
+      const updatedGoals = goals.map(g => {
+        // Remove from old goal
+        if (g.id === oldGoalId) {
+          return {
+            ...g,
+            linkedTasks: (g.linkedTasks || []).filter(id => id !== editingTask.id)
+          };
+        }
+        // Add to new goal
+        if (g.id === newGoalId) {
+          const linkedTasks = g.linkedTasks || [];
+          return {
+            ...g,
+            linkedTasks: linkedTasks.includes(editingTask.id) ? linkedTasks : [...linkedTasks, editingTask.id],
+            lastActivity: new Date().toISOString().split('T')[0]
+          };
+        }
+        return g;
+      });
+      setGoals(updatedGoals);
+      localStorage.setItem('goals', JSON.stringify(updatedGoals));
+    }
+
     setEditingTask(null);
     setShowEditModal(false);
     setShowEditEmojiPicker(false);
@@ -1605,6 +1666,24 @@ const TaskPrioritizer = () => {
                 </div>
               )}
 
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-0.5">
+                  Link to Goal (Optional)
+                </label>
+                <select
+                  value={newTask.goalId || ''}
+                  onChange={(e) => setNewTask({ ...newTask, goalId: e.target.value || null })}
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">No goal</option>
+                  {goals.filter(g => g.status === 'active').map(goal => (
+                    <option key={goal.id} value={goal.id}>
+                      {goal.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="flex gap-2 pt-2">
                 <button
                   onClick={addTask}
@@ -1757,6 +1836,24 @@ const TaskPrioritizer = () => {
                   />
                 </div>
               )}
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-0.5">
+                  Link to Goal (Optional)
+                </label>
+                <select
+                  value={editingTask.goalId || ''}
+                  onChange={(e) => setEditingTask({ ...editingTask, goalId: e.target.value || null })}
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">No goal</option>
+                  {goals.filter(g => g.status === 'active').map(goal => (
+                    <option key={goal.id} value={goal.id}>
+                      {goal.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <div className="flex gap-2 pt-2">
                 <button
@@ -2584,5 +2681,72 @@ const TaskPrioritizer = () => {
   );
 };
 
-export default TaskPrioritizer;
+// Main App wrapper with tab navigation
+const App = () => {
+  const [currentView, setCurrentView] = useState('tasks'); // tasks | goals
+  const [tasks, setTasks] = useState([]);
+
+  // Load tasks from localStorage on mount and refresh when view changes
+  useEffect(() => {
+    const loadTasks = () => {
+      const savedTasks = localStorage.getItem('taskPrioritizerTasks');
+      if (savedTasks) {
+        try {
+          setTasks(JSON.parse(savedTasks));
+        } catch (error) {
+          console.error('Failed to parse tasks from localStorage:', error);
+          setTasks([]);
+        }
+      }
+    };
+
+    loadTasks();
+
+    // Refresh tasks when switching to goals view
+    if (currentView === 'goals') {
+      const interval = setInterval(loadTasks, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [currentView]);
+
+  return (
+    <div className="min-h-screen">
+      {/* Navigation Header */}
+      <div className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex gap-1">
+            <button
+              onClick={() => setCurrentView('tasks')}
+              className={`px-6 py-3 font-medium transition-all flex items-center gap-2 ${
+                currentView === 'tasks'
+                  ? 'border-b-2 border-blue-500 text-blue-600'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              <CheckSquare size={18} />
+              Tasks
+            </button>
+            <button
+              onClick={() => setCurrentView('goals')}
+              className={`px-6 py-3 font-medium transition-all flex items-center gap-2 ${
+                currentView === 'goals'
+                  ? 'border-b-2 border-blue-500 text-blue-600'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              <Target size={18} />
+              Goals
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      {currentView === 'tasks' && <TaskPrioritizer />}
+      {currentView === 'goals' && <GoalBoard tasks={tasks} />}
+    </div>
+  );
+};
+
+export default App;
 
