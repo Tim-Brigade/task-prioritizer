@@ -828,12 +828,17 @@ const TaskPrioritizer = () => {
 
   const endWeek = () => {
     const completedTasks = tasks.filter(t => t.completed);
+    const activeGoals = goals.filter(g => g.status === 'active');
+    const pausedGoals = goals.filter(g => g.status === 'paused');
 
     let message = `End this week and start fresh?\n\n`;
     if (completedTasks.length > 0) {
       message += `• Download summary of ${completedTasks.length} completed task(s)\n`;
     } else {
       message += `No completed tasks to summarize.\n`;
+    }
+    if (activeGoals.length > 0 || pausedGoals.length > 0) {
+      message += `• Include ${activeGoals.length + pausedGoals.length} goal(s) status in summary\n`;
     }
     if (shoutouts.length > 0) {
       message += `• Include ${shoutouts.length} shoutout(s) in summary\n`;
@@ -847,9 +852,11 @@ const TaskPrioritizer = () => {
 
   const confirmEndWeek = () => {
     const completedTasks = tasks.filter(t => t.completed);
+    const activeGoals = goals.filter(g => g.status === 'active');
+    const pausedGoals = goals.filter(g => g.status === 'paused');
     let snapshot = '';
 
-    if (completedTasks.length > 0 || shoutouts.length > 0) {
+    if (completedTasks.length > 0 || shoutouts.length > 0 || activeGoals.length > 0 || pausedGoals.length > 0) {
       snapshot = `Weekly Summary - ${getWeekDateRange()}\n\n`;
 
       if (completedTasks.length > 0) {
@@ -874,6 +881,62 @@ const TaskPrioritizer = () => {
             snapshot += '\n';
           }
         });
+      }
+
+      if (activeGoals.length > 0 || pausedGoals.length > 0) {
+        snapshot += `GOALS STATUS:\n\n`;
+
+        if (activeGoals.length > 0) {
+          snapshot += `Active Goals (${activeGoals.length}):\n`;
+          activeGoals.forEach(goal => {
+            snapshot += `🎯 ${goal.title}\n`;
+            if (goal.description) {
+              snapshot += `  ${goal.description}\n`;
+            }
+
+            // Show progress for major goals
+            if (goal.type === 'major' && goal.subGoals && goal.subGoals.length > 0) {
+              const completed = goal.subGoals.filter(sg => sg.status === 'complete').length;
+              const total = goal.subGoals.length;
+              const percentage = Math.round((completed / total) * 100);
+              snapshot += `  Progress: ${completed}/${total} sub-goals (${percentage}%)\n`;
+
+              // List sub-goals with status
+              goal.subGoals.forEach(sg => {
+                const status = sg.status === 'complete' ? '✓' : '○';
+                snapshot += `    ${status} ${sg.title}\n`;
+              });
+            }
+
+            // Show linked tasks count
+            if (goal.linkedTasks && goal.linkedTasks.length > 0) {
+              snapshot += `  Linked tasks: ${goal.linkedTasks.length}\n`;
+            }
+
+            // Show staleness
+            if (goal.lastActivity) {
+              const daysSince = Math.floor((new Date() - new Date(goal.lastActivity)) / (1000 * 60 * 60 * 24));
+              if (daysSince > 0) {
+                snapshot += `  Last activity: ${daysSince} day${daysSince !== 1 ? 's' : ''} ago\n`;
+              }
+            } else {
+              snapshot += `  No activity yet\n`;
+            }
+
+            snapshot += '\n';
+          });
+        }
+
+        if (pausedGoals.length > 0) {
+          snapshot += `Paused Goals (${pausedGoals.length}):\n`;
+          pausedGoals.forEach(goal => {
+            snapshot += `⏸ ${goal.title}\n`;
+            if (goal.description) {
+              snapshot += `  ${goal.description}\n`;
+            }
+            snapshot += '\n';
+          });
+        }
       }
 
       if (shoutouts.length > 0) {
@@ -965,7 +1028,9 @@ const TaskPrioritizer = () => {
       tasks: tasks,
       weekStart: weekStart,
       weeklyHistory: weeklyHistory,
-      shoutouts: shoutouts
+      shoutouts: shoutouts,
+      goals: JSON.parse(localStorage.getItem('goals') || '[]'),
+      goalArchive: JSON.parse(localStorage.getItem('goalArchive') || '[]')
     };
     
     const dataStr = JSON.stringify(backup, null, 2);
@@ -1000,12 +1065,15 @@ const TaskPrioritizer = () => {
         setWeekStart(backup.weekStart);
         setWeeklyHistory(backup.weeklyHistory || []);
         setShoutouts(backup.shoutouts || []);
+        setGoals(backup.goals || []);
 
         // Save to localStorage
         localStorage.setItem('taskPrioritizerTasks', JSON.stringify(backup.tasks || []));
         localStorage.setItem('taskPrioritizerWeekStart', backup.weekStart);
         localStorage.setItem('taskPrioritizerHistory', JSON.stringify(backup.weeklyHistory || []));
         localStorage.setItem('taskPrioritizerShoutouts', JSON.stringify(backup.shoutouts || []));
+        localStorage.setItem('goals', JSON.stringify(backup.goals || []));
+        localStorage.setItem('goalArchive', JSON.stringify(backup.goalArchive || []));
         
         setRestoreMessage(`✅ Successfully restored backup from ${new Date(backup.exportDate).toLocaleDateString()}`);
         
