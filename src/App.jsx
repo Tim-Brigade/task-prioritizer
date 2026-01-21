@@ -3,8 +3,103 @@ import { Check, Plus, X, Calendar, Download, Edit2, Upload, HelpCircle, Heart, T
 import EmojiPicker from 'emoji-picker-react';
 import GoalBoard from './components/GoalBoard';
 
+// Helper to get initial tasks from localStorage
+const getInitialTasks = () => {
+  try {
+    const savedTasks = localStorage.getItem('taskPrioritizerTasks');
+    if (savedTasks) {
+      return JSON.parse(savedTasks);
+    }
+  } catch (error) {
+    console.error('Error loading tasks from localStorage:', error);
+  }
+  // Return example tasks for first-time users
+  return [
+    {
+      id: Date.now() + 1,
+      title: 'Fix critical bug in production',
+      description: 'Server crashes affecting users',
+      quadrant: 'q1',
+      dueDate: new Date().toISOString().split('T')[0],
+      completed: false,
+      createdAt: new Date().toISOString(),
+      icon: '🐛'
+    },
+    {
+      id: Date.now() + 2,
+      title: 'Learn new programming framework',
+      description: 'Invest in professional development',
+      quadrant: 'q2',
+      dueDate: '',
+      completed: false,
+      createdAt: new Date().toISOString(),
+      icon: '📚'
+    },
+    {
+      id: Date.now() + 3,
+      title: 'Plan next quarter strategy',
+      description: 'Set goals and roadmap',
+      quadrant: 'q2',
+      dueDate: '',
+      completed: false,
+      createdAt: new Date().toISOString(),
+      icon: '🗺️'
+    },
+    {
+      id: Date.now() + 4,
+      title: 'Respond to non-urgent emails',
+      description: 'Quick replies needed',
+      quadrant: 'q3',
+      dueDate: '',
+      completed: false,
+      createdAt: new Date().toISOString(),
+      icon: '📧'
+    },
+    {
+      id: Date.now() + 5,
+      title: 'Attend optional meeting',
+      description: 'Could be handled via email',
+      quadrant: 'q3',
+      dueDate: '',
+      completed: false,
+      createdAt: new Date().toISOString(),
+      icon: '📞'
+    },
+    {
+      id: Date.now() + 6,
+      title: 'Browse social media',
+      description: 'Time-waster - consider eliminating',
+      quadrant: 'q4',
+      dueDate: '',
+      completed: false,
+      createdAt: new Date().toISOString(),
+      icon: '📱'
+    },
+    {
+      id: Date.now() + 7,
+      title: 'Exercise and meal prep',
+      description: 'Important for long-term health',
+      quadrant: 'q2',
+      dueDate: '',
+      completed: false,
+      createdAt: new Date().toISOString(),
+      icon: '💪'
+    },
+    {
+      id: Date.now() + 8,
+      title: 'Client presentation tomorrow',
+      description: 'Final preparations needed',
+      quadrant: 'q1',
+      dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+      completed: false,
+      createdAt: new Date().toISOString(),
+      icon: '📊'
+    }
+  ];
+};
+
 const TaskPrioritizer = () => {
-  const [tasks, setTasks] = useState([]);
+  const [tasks, setTasks] = useState(getInitialTasks);
   const [goals, setGoals] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -193,7 +288,6 @@ const TaskPrioritizer = () => {
   };
 
   useEffect(() => {
-    const savedTasks = localStorage.getItem('taskPrioritizerTasks');
     const savedWeekStart = localStorage.getItem('taskPrioritizerWeekStart');
     const savedHistory = localStorage.getItem('taskPrioritizerHistory');
     const savedShoutouts = localStorage.getItem('taskPrioritizerShoutouts');
@@ -202,95 +296,6 @@ const TaskPrioritizer = () => {
     const savedUrgentImportantFont = localStorage.getItem('taskPrioritizerUrgentImportantFont');
     const savedHideCompletedTasks = localStorage.getItem('taskPrioritizerHideCompletedTasks');
     const savedGoals = localStorage.getItem('goals');
-
-    if (savedTasks) {
-      setTasks(JSON.parse(savedTasks));
-    } else {
-      // Load example tasks for first-time users
-      const exampleTasks = [
-        {
-          id: Date.now() + 1,
-          title: 'Fix critical bug in production',
-          description: 'Server crashes affecting users',
-          quadrant: 'q1',
-          dueDate: new Date().toISOString().split('T')[0],
-          completed: false,
-          createdAt: new Date().toISOString(),
-          icon: '🐛'
-        },
-        {
-          id: Date.now() + 2,
-          title: 'Learn new programming framework',
-          description: 'Invest in professional development',
-          quadrant: 'q2',
-          dueDate: '',
-          completed: false,
-          createdAt: new Date().toISOString(),
-          icon: '📚'
-        },
-        {
-          id: Date.now() + 3,
-          title: 'Plan next quarter strategy',
-          description: 'Set goals and roadmap',
-          quadrant: 'q2',
-          dueDate: '',
-          completed: false,
-          createdAt: new Date().toISOString(),
-          icon: '🗺️'
-        },
-        {
-          id: Date.now() + 4,
-          title: 'Respond to non-urgent emails',
-          description: 'Quick replies needed',
-          quadrant: 'q3',
-          dueDate: '',
-          completed: false,
-          createdAt: new Date().toISOString(),
-          icon: '📧'
-        },
-        {
-          id: Date.now() + 5,
-          title: 'Attend optional meeting',
-          description: 'Could be handled via email',
-          quadrant: 'q3',
-          dueDate: '',
-          completed: false,
-          createdAt: new Date().toISOString(),
-          icon: '📞'
-        },
-        {
-          id: Date.now() + 6,
-          title: 'Browse social media',
-          description: 'Time-waster - consider eliminating',
-          quadrant: 'q4',
-          dueDate: '',
-          completed: false,
-          createdAt: new Date().toISOString(),
-          icon: '📱'
-        },
-        {
-          id: Date.now() + 7,
-          title: 'Exercise and meal prep',
-          description: 'Important for long-term health',
-          quadrant: 'q2',
-          dueDate: '',
-          completed: false,
-          createdAt: new Date().toISOString(),
-          icon: '💪'
-        },
-        {
-          id: Date.now() + 8,
-          title: 'Client presentation tomorrow',
-          description: 'Final preparations needed',
-          quadrant: 'q1',
-          dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-          completed: false,
-          createdAt: new Date().toISOString(),
-          icon: '📊'
-        }
-      ];
-      setTasks(exampleTasks);
-    }
 
     // Show help modal for first-time users
     if (!hasSeenHelp) {
