@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Check, Plus, X, Calendar, Download, Edit2, Upload, HelpCircle, Heart, Type, AlertTriangle, Eye, EyeOff, MoreVertical, RotateCcw, RotateCw, Target, CheckSquare } from 'lucide-react';
-import EmojiPicker from 'emoji-picker-react';
+import { Calendar, Download, Upload, HelpCircle, Heart, Type, Eye, EyeOff, MoreVertical, RotateCcw, RotateCw, Target, CheckSquare, X, Plus } from 'lucide-react';
 import GoalBoard from './components/GoalBoard';
+import Quadrant, { quadrantConfig, Q1_OVERLOAD_THRESHOLD } from './components/Quadrant';
+import TaskModal from './components/TaskModal';
+import { HelpModal, Q1OverloadModal } from './components/HelpModal';
+import { getAutoIcon } from './hooks/useTasks';
 
 // Helper to get initial tasks from localStorage
 const getInitialTasks = () => {
@@ -113,7 +116,6 @@ const TaskPrioritizer = () => {
   const [endWeekMessage, setEndWeekMessage] = useState('');
   const [weeklyHistory, setWeeklyHistory] = useState([]);
   const [restoreMessage, setRestoreMessage] = useState('');
-  const [newTask, setNewTask] = useState({ title: '', description: '', quadrant: 'q2', dueDate: '', icon: '📝', delegate: '', goalId: null });
   const [editingTask, setEditingTask] = useState(null);
   const [selectedQuadrant, setSelectedQuadrant] = useState(null);
   const [draggedTask, setDraggedTask] = useState(null);
@@ -122,8 +124,6 @@ const TaskPrioritizer = () => {
   const [shoutouts, setShoutouts] = useState([]);
   const [showShoutoutModal, setShowShoutoutModal] = useState(false);
   const [newShoutout, setNewShoutout] = useState({ colleague: '', note: '' });
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [showEditEmojiPicker, setShowEditEmojiPicker] = useState(false);
   const [taskFont, setTaskFont] = useState('Indie Flower');
   const [urgentImportantFont, setUrgentImportantFont] = useState('');
   const [showQ1OverloadModal, setShowQ1OverloadModal] = useState(false);
@@ -142,9 +142,6 @@ const TaskPrioritizer = () => {
   const [undoHistory, setUndoHistory] = useState([]);
   const [redoHistory, setRedoHistory] = useState([]);
 
-  // Q1 overload threshold
-  const Q1_OVERLOAD_THRESHOLD = 6;
-
   // Available fonts
   const availableFonts = [
     { name: 'Indie Flower', family: "'Indie Flower', cursive" },
@@ -157,135 +154,6 @@ const TaskPrioritizer = () => {
     { name: 'Courier Prime', family: "'Courier Prime', monospace" },
     { name: 'Merriweather', family: "'Merriweather', serif" },
   ];
-
-  // Auto-select icon based on task title
-  const getAutoIcon = (title) => {
-    const lowerTitle = title.toLowerCase();
-
-    // Define keyword mappings to emojis
-    const iconMap = [
-      // Development & Tech
-      { keywords: ['bug', 'fix', 'error', 'crash', 'issue', 'debug'], emoji: '🐛' },
-      { keywords: ['code', 'develop', 'program', 'implement', 'build', 'refactor'], emoji: '💻' },
-      { keywords: ['deploy', 'release', 'launch', 'ship', 'publish'], emoji: '🚀' },
-      { keywords: ['test', 'qa', 'quality', 'testing'], emoji: '🧪' },
-      { keywords: ['api', 'endpoint', 'integration', 'webhook'], emoji: '🔌' },
-      { keywords: ['database', 'data', 'sql', 'query', 'schema'], emoji: '🗄️' },
-      { keywords: ['server', 'backend', 'infrastructure'], emoji: '🖥️' },
-      { keywords: ['frontend', 'ui', 'interface'], emoji: '🌐' },
-      { keywords: ['mobile', 'app', 'ios', 'android'], emoji: '📱' },
-      { keywords: ['performance', 'optimize', 'speed'], emoji: '⚡' },
-      { keywords: ['security', 'password', 'auth', 'encryption'], emoji: '🔒' },
-      { keywords: ['backup', 'save', 'archive', 'export'], emoji: '💾' },
-
-      // Design & Creative
-      { keywords: ['design', 'ui', 'ux', 'mockup', 'prototype'], emoji: '🎨' },
-      { keywords: ['logo', 'brand', 'identity'], emoji: '🎭' },
-      { keywords: ['photo', 'image', 'picture'], emoji: '📸' },
-      { keywords: ['video', 'film', 'record'], emoji: '🎬' },
-      { keywords: ['music', 'audio', 'sound'], emoji: '🎵' },
-
-      // Communication
-      { keywords: ['meeting', 'call', 'zoom', 'conference', 'standup'], emoji: '📞' },
-      { keywords: ['email', 'message', 'reply', 'respond', 'inbox'], emoji: '📧' },
-      { keywords: ['chat', 'slack', 'discord', 'teams'], emoji: '💬' },
-      { keywords: ['present', 'demo', 'show', 'pitch'], emoji: '📊' },
-      { keywords: ['interview', 'recruit', 'hire'], emoji: '🎤' },
-      { keywords: ['feedback', 'survey', 'review'], emoji: '📝' },
-
-      // Documentation & Content
-      { keywords: ['document', 'report', 'write', 'draft', 'doc'], emoji: '📄' },
-      { keywords: ['blog', 'article', 'content', 'post'], emoji: '✍️' },
-      { keywords: ['note', 'memo', 'minutes'], emoji: '📋' },
-      { keywords: ['contract', 'agreement', 'legal'], emoji: '📜' },
-
-      // Planning & Management
-      { keywords: ['plan', 'strategy', 'roadmap', 'planning'], emoji: '🗺️' },
-      { keywords: ['goal', 'target', 'objective', 'okr'], emoji: '🎯' },
-      { keywords: ['schedule', 'calendar', 'appointment'], emoji: '📅' },
-      { keywords: ['deadline', 'due', 'time'], emoji: '⏰' },
-      { keywords: ['todo', 'task', 'checklist'], emoji: '✅' },
-      { keywords: ['prioritize', 'organize', 'sort'], emoji: '📌' },
-
-      // Business & Finance
-      { keywords: ['money', 'budget', 'finance', 'pay', 'payment', 'invoice'], emoji: '💰' },
-      { keywords: ['sales', 'revenue', 'profit'], emoji: '💵' },
-      { keywords: ['analytics', 'metrics', 'stats', 'kpi', 'dashboard'], emoji: '📈' },
-      { keywords: ['client', 'customer', 'user', 'account'], emoji: '👤' },
-      { keywords: ['tax', 'expense', 'receipt'], emoji: '🧾' },
-
-      // Team & Collaboration
-      { keywords: ['team', 'collaborate', 'group', 'together'], emoji: '👥' },
-      { keywords: ['delegate', 'assign', 'handoff'], emoji: '🤝' },
-      { keywords: ['onboard', 'train', 'mentor'], emoji: '🎓' },
-
-      // Learning & Research
-      { keywords: ['learn', 'study', 'research', 'read', 'course'], emoji: '📚' },
-      { keywords: ['workshop', 'training', 'seminar'], emoji: '🎓' },
-      { keywords: ['experiment', 'try', 'explore'], emoji: '🔬' },
-
-      // Personal & Wellness
-      { keywords: ['health', 'exercise', 'workout', 'gym', 'fitness'], emoji: '💪' },
-      { keywords: ['doctor', 'medical', 'appointment', 'checkup'], emoji: '🏥' },
-      { keywords: ['eat', 'lunch', 'dinner', 'meal', 'food', 'breakfast'], emoji: '🍽️' },
-      { keywords: ['sleep', 'rest', 'relax'], emoji: '😴' },
-      { keywords: ['meditate', 'mindful', 'zen'], emoji: '🧘' },
-      { keywords: ['water', 'hydrate', 'drink'], emoji: '💧' },
-
-      // Shopping & Errands
-      { keywords: ['shop', 'buy', 'purchase', 'order', 'amazon'], emoji: '🛒' },
-      { keywords: ['grocery', 'groceries', 'supermarket'], emoji: '🥕' },
-      { keywords: ['gift', 'present', 'birthday'], emoji: '🎁' },
-      { keywords: ['return', 'exchange', 'refund'], emoji: '↩️' },
-
-      // Home & Lifestyle
-      { keywords: ['clean', 'organize', 'tidy', 'declutter'], emoji: '🧹' },
-      { keywords: ['laundry', 'wash', 'clothes'], emoji: '🧺' },
-      { keywords: ['cook', 'recipe', 'kitchen'], emoji: '👨‍🍳' },
-      { keywords: ['garden', 'plant', 'grow'], emoji: '🌱' },
-      { keywords: ['pet', 'dog', 'cat', 'vet'], emoji: '🐾' },
-      { keywords: ['car', 'vehicle', 'drive', 'maintenance'], emoji: '🚗' },
-
-      // Travel & Events
-      { keywords: ['travel', 'trip', 'vacation', 'holiday'], emoji: '✈️' },
-      { keywords: ['flight', 'plane', 'airport'], emoji: '🛫' },
-      { keywords: ['hotel', 'booking', 'reservation'], emoji: '🏨' },
-      { keywords: ['event', 'conference', 'summit'], emoji: '🎪' },
-
-      // Urgent & Important
-      { keywords: ['urgent', 'critical', 'emergency', 'asap', 'important'], emoji: '🚨' },
-      { keywords: ['fire', 'crisis', 'alert'], emoji: '🔥' },
-      { keywords: ['warning', 'caution', 'attention'], emoji: '⚠️' },
-
-      // Positive & Achievement
-      { keywords: ['celebrate', 'party', 'success', 'win', 'achievement'], emoji: '🎉' },
-      { keywords: ['complete', 'done', 'finish', 'accomplish'], emoji: '✨' },
-      { keywords: ['launch', 'premiere', 'debut'], emoji: '🎊' },
-      { keywords: ['milestone', 'achievement', 'badge'], emoji: '🏆' },
-
-      // Miscellaneous
-      { keywords: ['idea', 'brainstorm', 'creative', 'innovation'], emoji: '💡' },
-      { keywords: ['question', 'help', 'support'], emoji: '❓' },
-      { keywords: ['phone', 'mobile', 'call'], emoji: '☎️' },
-      { keywords: ['print', 'printer', 'copy'], emoji: '🖨️' },
-      { keywords: ['scan', 'scanner'], emoji: '📠' },
-      { keywords: ['book', 'library', 'novel'], emoji: '📖' },
-      { keywords: ['news', 'article', 'update'], emoji: '📰' },
-      { keywords: ['weather', 'forecast', 'climate'], emoji: '🌤️' },
-      { keywords: ['repair', 'maintenance', 'service'], emoji: '🔧' },
-      { keywords: ['renew', 'renewal', 'subscription'], emoji: '🔄' },
-    ];
-
-    // Find first matching keyword
-    for (const { keywords, emoji } of iconMap) {
-      if (keywords.some(keyword => lowerTitle.includes(keyword))) {
-        return emoji;
-      }
-    }
-
-    // Default icon
-    return '📝';
-  };
 
   useEffect(() => {
     const savedWeekStart = localStorage.getItem('taskPrioritizerWeekStart');
@@ -571,28 +439,29 @@ const TaskPrioritizer = () => {
     return `Week ${weekNum}: ${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
   };
 
-  const addTask = () => {
-    if (!newTask.title.trim()) return;
+  // Handler for TaskModal onSave (add mode)
+  const handleAddTask = (formData) => {
+    if (!formData.title.trim()) return;
 
     const task = {
       id: Date.now(),
-      title: newTask.title,
-      description: newTask.description,
-      quadrant: newTask.quadrant,
-      dueDate: newTask.dueDate,
+      title: formData.title,
+      description: formData.description,
+      quadrant: formData.quadrant,
+      dueDate: formData.dueDate,
       completed: false,
       createdAt: new Date().toISOString(),
-      icon: newTask.icon || getAutoIcon(newTask.title),
-      delegate: newTask.delegate || '',
-      goalId: newTask.goalId || null
+      icon: formData.icon || getAutoIcon(formData.title),
+      delegate: formData.delegate || '',
+      goalId: formData.goalId || null
     };
 
     setTasks([...tasks, task]);
 
     // Update goal if task is linked to one
-    if (newTask.goalId) {
+    if (formData.goalId) {
       const updatedGoals = goals.map(g => {
-        if (g.id === newTask.goalId) {
+        if (g.id === formData.goalId) {
           const linkedTasks = g.linkedTasks || [];
           return {
             ...g,
@@ -606,54 +475,27 @@ const TaskPrioritizer = () => {
       localStorage.setItem('goals', JSON.stringify(updatedGoals));
     }
 
-    setNewTask({ title: '', description: '', quadrant: 'q2', dueDate: '', icon: '📝', delegate: '', goalId: null });
     setSelectedQuadrant(null);
     setShowAddModal(false);
-    setShowEmojiPicker(false);
   };
 
-  const handleNewTaskTitleChange = (title) => {
-    setNewTask({ ...newTask, title, icon: getAutoIcon(title) });
-  };
+  // Handler for TaskModal onSave (edit mode)
+  const handleUpdateTask = (formData) => {
+    if (!formData.title.trim()) return;
 
-  const handleEditTaskTitleChange = (title) => {
-    setEditingTask({ ...editingTask, title, icon: getAutoIcon(title) });
-  };
-
-  const openAddModal = (quadrant = null) => {
-    if (quadrant) {
-      setNewTask({ title: '', description: '', quadrant: quadrant, dueDate: '', icon: '📝', delegate: '', goalId: null });
-      setSelectedQuadrant(quadrant);
-    } else {
-      setNewTask({ title: '', description: '', quadrant: 'q2', dueDate: '', icon: '📝', delegate: '', goalId: null });
-      setSelectedQuadrant(null);
-    }
-    setShowAddModal(true);
-    setShowEmojiPicker(false);
-  };
-
-  const openEditModal = (task) => {
-    setEditingTask({ ...task, icon: task.icon || getAutoIcon(task.title) });
-    setShowEditModal(true);
-    setShowEditEmojiPicker(false);
-  };
-
-  const updateTask = () => {
-    if (!editingTask.title.trim()) return;
-
-    const oldTask = tasks.find(t => t.id === editingTask.id);
+    const oldTask = tasks.find(t => t.id === formData.id);
     if (oldTask) {
       saveToHistory('edit', { ...oldTask });
     }
 
-    const updatedTask = { ...editingTask, icon: editingTask.icon || getAutoIcon(editingTask.title) };
+    const updatedTask = { ...formData, icon: formData.icon || getAutoIcon(formData.title) };
     setTasks(tasks.map(task =>
-      task.id === editingTask.id ? updatedTask : task
+      task.id === formData.id ? updatedTask : task
     ));
 
     // Handle goal linking changes
     const oldGoalId = oldTask?.goalId;
-    const newGoalId = editingTask.goalId;
+    const newGoalId = formData.goalId;
 
     if (oldGoalId !== newGoalId) {
       const updatedGoals = goals.map(g => {
@@ -661,7 +503,7 @@ const TaskPrioritizer = () => {
         if (g.id === oldGoalId) {
           return {
             ...g,
-            linkedTasks: (g.linkedTasks || []).filter(id => id !== editingTask.id)
+            linkedTasks: (g.linkedTasks || []).filter(id => id !== formData.id)
           };
         }
         // Add to new goal
@@ -669,7 +511,7 @@ const TaskPrioritizer = () => {
           const linkedTasks = g.linkedTasks || [];
           return {
             ...g,
-            linkedTasks: linkedTasks.includes(editingTask.id) ? linkedTasks : [...linkedTasks, editingTask.id],
+            linkedTasks: linkedTasks.includes(formData.id) ? linkedTasks : [...linkedTasks, formData.id],
             lastActivity: new Date().toISOString().split('T')[0]
           };
         }
@@ -681,7 +523,16 @@ const TaskPrioritizer = () => {
 
     setEditingTask(null);
     setShowEditModal(false);
-    setShowEditEmojiPicker(false);
+  };
+
+  const openAddModal = (quadrant = null) => {
+    setSelectedQuadrant(quadrant);
+    setShowAddModal(true);
+  };
+
+  const openEditModal = (task) => {
+    setEditingTask(task);
+    setShowEditModal(true);
   };
 
   const isOverdue = (dueDate) => {
@@ -1134,281 +985,29 @@ const TaskPrioritizer = () => {
       });
   };
 
-  const quadrantConfig = {
-    q1: {
-      title: 'Urgent & Important',
-      subtitle: 'Do First',
-      color: '#FFCCCC',
-      darkColor: '#FF6B6B'
-    },
-    q2: {
-      title: 'Important, Not Urgent',
-      subtitle: 'Schedule',
-      color: '#CCE5FF',
-      darkColor: '#4A90E2'
-    },
-    q3: {
-      title: 'Urgent, Not Important',
-      subtitle: 'Delegate',
-      color: '#FFFFCC',
-      darkColor: '#F4D03F'
-    },
-    q4: {
-      title: 'Neither Urgent nor Important',
-      subtitle: 'Eliminate/Communicate',
-      color: '#E0E0E0',
-      darkColor: '#9E9E9E'
-    }
-  };
-
-  const PostItNote = ({ task, config }) => {
-    const rotate = (task.id % 6) - 3;
-
-    // Check if this is a top priority Q1 task (top 3 incomplete tasks)
-    const q1Tasks = getQuadrantTasks('q1');
-    const incompleteQ1Tasks = q1Tasks.filter(t => !t.completed);
-    const taskIndex = incompleteQ1Tasks.findIndex(t => t.id === task.id);
-    const isTopPriority = task.quadrant === 'q1' && !task.completed && taskIndex >= 0 && taskIndex < 3;
-
-    const handleDragStartWrapper = (e) => {
-      // Prevent drag if starting from a button
-      const target = e.target;
-      if (target.closest('button') || target.tagName === 'BUTTON') {
-        e.preventDefault();
-        return;
-      }
-      handleDragStart(e, task);
-    };
-
-    const handleDoubleClick = (e) => {
-      // Don't trigger edit if double-clicking on buttons
-      const target = e.target;
-      if (target.closest('button') || target.tagName === 'BUTTON') {
-        return;
-      }
-      openEditModal(task);
-    };
-
-    return (
-      <div
-        draggable
-        onDragStart={handleDragStartWrapper}
-        onDragEnd={handleDragEnd}
-        onDoubleClick={handleDoubleClick}
-        className={`relative transition-all cursor-grab active:cursor-grabbing hover:scale-105 hover:shadow-xl ${
-          task.completed ? 'opacity-60' : ''
-        } ${isTopPriority ? 'ring-2 ring-red-500 ring-offset-2' : ''}`}
-        style={{
-          transform: `rotate(${rotate}deg)`,
-          backgroundColor: config.color,
-          boxShadow: isTopPriority ? '6px 6px 12px rgba(239, 68, 68, 0.3)' : '4px 4px 8px rgba(0,0,0,0.15)',
-        }}
-      >
-        <div className="p-3 min-h-[120px] flex flex-col">
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => toggleComplete(task.id)}
-                className={`flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                  task.completed
-                    ? 'bg-green-600 border-green-600'
-                    : 'border-gray-600 hover:border-green-600 bg-white bg-opacity-50'
-                }`}
-              >
-                {task.completed && <Check size={12} className="text-white" />}
-              </button>
-              <div className="relative">
-                <span className="text-xl" title="Task icon">{task.icon || '📝'}</span>
-                {isTopPriority && (
-                  <span
-                    className="absolute -top-1 -right-1 bg-red-600 text-white text-[8px] font-bold rounded-full w-3 h-3 flex items-center justify-center"
-                    title={`Top priority #${taskIndex + 1}`}
-                  >
-                    {taskIndex + 1}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="flex gap-1 flex-shrink-0">
-              <button
-                onClick={() => openEditModal(task)}
-                className="text-gray-600 hover:text-blue-700 transition-colors"
-                title="Edit"
-              >
-                <Edit2 size={13} />
-              </button>
-              <button
-                onClick={() => deleteTask(task.id)}
-                className="text-gray-600 hover:text-red-700 transition-colors"
-                title="Delete"
-              >
-                <X size={15} />
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1">
-            <div
-              className={`font-handwriting text-sm font-medium text-gray-900 break-words mb-1 ${
-                task.completed ? 'line-through' : ''
-              }`}
-              style={{ fontFamily: getTaskFontFamily(task.quadrant) }}
-            >
-              {task.title}
-            </div>
-            {task.description && (
-              <div
-                className={`text-xs text-gray-700 ${
-                  task.completed ? 'line-through' : ''
-                }`}
-                style={{ fontFamily: getTaskFontFamily(task.quadrant) }}
-              >
-                {renderDescription(task.description)}
-              </div>
-            )}
-          </div>
-          
-          {task.dueDate && (
-            <div className={`text-xs mt-2 flex items-center gap-1 ${
-              task.completed
-                ? 'text-gray-500 line-through'
-                : isOverdue(task.dueDate)
-                ? 'text-red-700 font-bold'
-                : 'text-gray-700'
-            }`}>
-              <Calendar size={10} />
-              <span style={{ fontFamily: getTaskFontFamily(task.quadrant) }}>
-                {formatDueDate(task.dueDate)}
-              </span>
-            </div>
-          )}
-
-          {task.quadrant === 'q3' && task.delegate && (
-            <div className={`text-xs mt-2 px-2 py-1 bg-yellow-100 rounded text-yellow-900 ${
-              task.completed ? 'line-through text-yellow-700' : ''
-            }`}
-            style={{ fontFamily: getTaskFontFamily(task.quadrant) }}>
-              Delegated to: {task.delegate}
-            </div>
-          )}
-        </div>
-        
-        <div 
-          className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-16 h-2 bg-white bg-opacity-40"
-          style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}
-        />
-      </div>
-    );
-  };
-
-  const Quadrant = ({ quadrant, config }) => {
-    const isDropTarget = dragOverQuadrant === quadrant;
-    const isDragging = draggedTask !== null;
-    const q1Tasks = tasks.filter(t => t.quadrant === 'q1' && !t.completed);
-    const isQ1Overloaded = quadrant === 'q1' && q1Tasks.length >= Q1_OVERLOAD_THRESHOLD;
-
-    return (
-      <div
-        className={`relative p-4 flex flex-col transition-all ${
-          isDragging ? 'ring-2 ring-transparent' : ''
-        } ${isDropTarget ? 'ring-4 ring-blue-400 ring-opacity-50 bg-blue-50 bg-opacity-30' : ''}`}
-        onDragOver={(e) => handleDragOver(e, quadrant)}
-        onDragLeave={handleDragLeave}
-        onDrop={(e) => handleDrop(e, quadrant)}
-      >
-        <div className="absolute top-2 left-2 z-10">
-          <div className={`bg-white bg-opacity-80 backdrop-blur-sm px-3 py-1.5 rounded shadow-md transition-all ${
-            isDropTarget ? 'ring-2 ring-blue-400 scale-105' : ''
-          } ${isQ1Overloaded ? 'ring-2 ring-orange-500' : ''}`}>
-            <div className="flex items-center gap-2">
-              <div className="flex-1">
-                <div className="text-xs font-bold text-gray-800">{config.title}</div>
-                <div className="text-xs text-gray-600">{config.subtitle}</div>
-              </div>
-              {isQ1Overloaded && (
-                <button
-                  onClick={() => setShowQ1OverloadModal(true)}
-                  className="text-orange-600 hover:text-orange-700 transition-colors"
-                  title="Q1 overload warning - click for tips"
-                >
-                  <AlertTriangle size={16} className="animate-pulse" />
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <button
-          onClick={() => openAddModal(quadrant)}
-          className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white shadow-lg hover:shadow-xl flex items-center justify-center transition-all hover:scale-110 z-10"
-          title="Add task"
-        >
-          <Plus size={18} className="text-gray-700" />
-        </button>
-
-        <div className="mt-16 grid grid-cols-2 gap-4 auto-rows-min">
-          {getQuadrantTasks(quadrant).map(task => (
-            <PostItNote key={task.id} task={task} config={config} />
-          ))}
-        </div>
-
-        {isDropTarget && (
-          <div className="absolute inset-0 pointer-events-none border-4 border-dashed border-blue-400 rounded-lg bg-blue-100 bg-opacity-10 flex items-center justify-center">
-            <div className="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg font-medium">
-              Drop here
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // Render description with bullet point and numbered list support
-  const renderDescription = (description) => {
-    const lines = description.split('\n');
-    const hasBullets = lines.some(line => line.trim().startsWith('*'));
-    const hasNumberedList = lines.some(line => /^\s*\d+\./.test(line));
-
-    if (!hasBullets && !hasNumberedList) {
-      return <div className="whitespace-pre-wrap">{description}</div>;
-    }
-
-    return (
-      <div className="space-y-1">
-        {lines.map((line, idx) => {
-          const trimmed = line.trim();
-
-          // Handle bullet points
-          if (trimmed.startsWith('*')) {
-            return (
-              <div key={idx} className="flex gap-2 ml-2">
-                <span className="flex-shrink-0">•</span>
-                <span>{trimmed.substring(1).trim()}</span>
-              </div>
-            );
-          }
-
-          // Handle numbered lists
-          const numberedMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
-          if (numberedMatch) {
-            return (
-              <div key={idx} className="flex gap-2 ml-2">
-                <span className="flex-shrink-0">{numberedMatch[1]}.</span>
-                <span>{numberedMatch[2]}</span>
-              </div>
-            );
-          }
-
-          // Skip empty lines
-          if (trimmed === '') {
-            return null;
-          }
-
-          return <div key={idx} className="whitespace-pre-wrap">{line}</div>;
-        })}
-      </div>
-    );
-  };
+  // Helper to render a quadrant with proper props for the extracted Quadrant component
+  const renderQuadrant = (quadrantId) => (
+    <Quadrant
+      quadrant={quadrantId}
+      tasks={getQuadrantTasks(quadrantId)}
+      allTasks={tasks}
+      isDropTarget={dragOverQuadrant === quadrantId}
+      isDragging={draggedTask !== null}
+      fontFamily={getTaskFontFamily(quadrantId)}
+      onAddTask={openAddModal}
+      onEditTask={openEditModal}
+      onDeleteTask={deleteTask}
+      onToggleComplete={toggleComplete}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      onShowOverloadWarning={() => setShowQ1OverloadModal(true)}
+      isOverdue={isOverdue}
+      formatDueDate={formatDueDate}
+    />
+  );
 
   return (
     <div className="min-h-screen p-4" style={{ 
@@ -1545,12 +1144,12 @@ const TaskPrioritizer = () => {
           <div className="relative">
             <div className="grid grid-cols-2 divide-x-2 divide-gray-300">
               <div className="grid grid-rows-2 divide-y-2 divide-gray-300">
-                <Quadrant quadrant="q1" config={quadrantConfig.q1} />
-                <Quadrant quadrant="q3" config={quadrantConfig.q3} />
+                {renderQuadrant('q1')}
+                {renderQuadrant('q3')}
               </div>
               <div className="grid grid-rows-2 divide-y-2 divide-gray-300">
-                <Quadrant quadrant="q2" config={quadrantConfig.q2} />
-                <Quadrant quadrant="q4" config={quadrantConfig.q4} />
+                {renderQuadrant('q2')}
+                {renderQuadrant('q4')}
               </div>
             </div>
           </div>
@@ -1607,349 +1206,29 @@ const TaskPrioritizer = () => {
         )}
       </div>
 
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-4 max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex justify-between items-center mb-3">
-              <h2 className="text-lg font-bold text-gray-900">Add New Task</h2>
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setSelectedQuadrant(null);
-                }}
-                className="text-gray-400 hover:text-gray-600 flex-shrink-0"
-              >
-                <X size={20} />
-              </button>
-            </div>
+      <TaskModal
+        isOpen={showAddModal}
+        mode="add"
+        selectedQuadrant={selectedQuadrant}
+        goals={goals}
+        onSave={handleAddTask}
+        onClose={() => {
+          setShowAddModal(false);
+          setSelectedQuadrant(null);
+        }}
+      />
 
-            <div className="space-y-3 overflow-y-auto flex-1 pr-2">
-              <div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                    className="text-2xl px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 transition-colors flex-shrink-0"
-                    title="Click to change icon"
-                  >
-                    {newTask.icon}
-                  </button>
-                  <span className="text-xs text-gray-500">Click to change</span>
-                </div>
-                {showEmojiPicker && (
-                  <div className="mt-2 relative z-10">
-                    <EmojiPicker
-                      onEmojiClick={(emojiData) => {
-                        setNewTask({ ...newTask, icon: emojiData.emoji });
-                        setShowEmojiPicker(false);
-                      }}
-                      width="100%"
-                      height={350}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-0.5">
-                  Task Title *
-                </label>
-                <input
-                  type="text"
-                  value={newTask.title}
-                  onChange={(e) => handleNewTaskTitleChange(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.ctrlKey && e.key === 'Enter') {
-                      addTask();
-                    } else if (e.key === 'Escape') {
-                      setShowAddModal(false);
-                      setSelectedQuadrant(null);
-                      setShowEmojiPicker(false);
-                    }
-                  }}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter task title"
-                  autoFocus
-                />
-              </div>
-              
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-0.5">
-                  Description
-                </label>
-                <textarea
-                  value={newTask.description}
-                  onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                  onKeyDown={(e) => {
-                    if (e.ctrlKey && e.key === 'Enter') {
-                      addTask();
-                    } else if (e.key === 'Escape') {
-                      setShowAddModal(false);
-                      setSelectedQuadrant(null);
-                      setShowEmojiPicker(false);
-                    }
-                  }}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  rows="3"
-                  placeholder="Optional details"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-0.5">
-                  Due Date
-                </label>
-                <input
-                  type="date"
-                  value={newTask.dueDate}
-                  onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-0.5">
-                  Quadrant
-                </label>
-                <select
-                  value={newTask.quadrant}
-                  onChange={(e) => setNewTask({ ...newTask, quadrant: e.target.value })}
-                  disabled={selectedQuadrant !== null}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
-                >
-                  <option value="q1">Q1: Urgent & Important</option>
-                  <option value="q2">Q2: Important, Not Urgent</option>
-                  <option value="q3">Q3: Urgent, Not Important</option>
-                  <option value="q4">Q4: Neither</option>
-                </select>
-              </div>
-
-              {newTask.quadrant === 'q3' && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-0.5">
-                    Delegate To (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={newTask.delegate}
-                    onChange={(e) => setNewTask({ ...newTask, delegate: e.target.value })}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Name of person to delegate to"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-0.5">
-                  Link to Goal (Optional)
-                </label>
-                <select
-                  value={newTask.goalId || ''}
-                  onChange={(e) => setNewTask({ ...newTask, goalId: e.target.value || null })}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">No goal</option>
-                  {goals.filter(g => g.status === 'active').map(goal => (
-                    <option key={goal.id} value={goal.id}>
-                      {goal.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  onClick={addTask}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 text-sm rounded transition-colors"
-                >
-                  Add Task
-                </button>
-                <button
-                  onClick={() => {
-                    setShowAddModal(false);
-                    setSelectedQuadrant(null);
-                    setShowEmojiPicker(false);
-                  }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 text-sm rounded transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showEditModal && editingTask && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-4 max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex justify-between items-center mb-3">
-              <h2 className="text-lg font-bold text-gray-900">Edit Task</h2>
-              <button
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditingTask(null);
-                  setShowEditEmojiPicker(false);
-                }}
-                className="text-gray-400 hover:text-gray-600 flex-shrink-0"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="space-y-3 overflow-y-auto flex-1 pr-2">
-              <div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowEditEmojiPicker(!showEditEmojiPicker)}
-                    className="text-2xl px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 transition-colors flex-shrink-0"
-                    title="Click to change icon"
-                  >
-                    {editingTask.icon || '📝'}
-                  </button>
-                  <span className="text-xs text-gray-500">Click to change</span>
-                </div>
-                {showEditEmojiPicker && (
-                  <div className="mt-2 relative z-10">
-                    <EmojiPicker
-                      onEmojiClick={(emojiData) => {
-                        setEditingTask({ ...editingTask, icon: emojiData.emoji });
-                        setShowEditEmojiPicker(false);
-                      }}
-                      width="100%"
-                      height={350}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-0.5">
-                  Task Title *
-                </label>
-                <input
-                  type="text"
-                  value={editingTask.title}
-                  onChange={(e) => handleEditTaskTitleChange(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.ctrlKey && e.key === 'Enter') {
-                      updateTask();
-                    } else if (e.key === 'Escape') {
-                      setShowEditModal(false);
-                      setEditingTask(null);
-                      setShowEditEmojiPicker(false);
-                    }
-                  }}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  autoFocus
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-0.5">
-                  Description
-                </label>
-                <textarea
-                  value={editingTask.description}
-                  onChange={(e) => setEditingTask({ ...editingTask, description: e.target.value })}
-                  onKeyDown={(e) => {
-                    if (e.ctrlKey && e.key === 'Enter') {
-                      updateTask();
-                    } else if (e.key === 'Escape') {
-                      setShowEditModal(false);
-                      setEditingTask(null);
-                      setShowEditEmojiPicker(false);
-                    }
-                  }}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  rows="3"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-0.5">
-                  Due Date
-                </label>
-                <input
-                  type="date"
-                  value={editingTask.dueDate || ''}
-                  onChange={(e) => setEditingTask({ ...editingTask, dueDate: e.target.value })}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-0.5">
-                  Quadrant
-                </label>
-                <select
-                  value={editingTask.quadrant}
-                  onChange={(e) => setEditingTask({ ...editingTask, quadrant: e.target.value })}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="q1">Q1: Urgent & Important</option>
-                  <option value="q2">Q2: Important, Not Urgent</option>
-                  <option value="q3">Q3: Urgent, Not Important</option>
-                  <option value="q4">Q4: Neither</option>
-                </select>
-              </div>
-
-              {editingTask.quadrant === 'q3' && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-0.5">
-                    Delegate To (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={editingTask.delegate || ''}
-                    onChange={(e) => setEditingTask({ ...editingTask, delegate: e.target.value })}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Name of person to delegate to"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-0.5">
-                  Link to Goal (Optional)
-                </label>
-                <select
-                  value={editingTask.goalId || ''}
-                  onChange={(e) => setEditingTask({ ...editingTask, goalId: e.target.value || null })}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">No goal</option>
-                  {goals.filter(g => g.status === 'active').map(goal => (
-                    <option key={goal.id} value={goal.id}>
-                      {goal.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  onClick={updateTask}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 text-sm rounded transition-colors"
-                >
-                  Save Changes
-                </button>
-                <button
-                  onClick={() => {
-                    setShowEditModal(false);
-                    setEditingTask(null);
-                    setShowEditEmojiPicker(false);
-                  }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 text-sm rounded transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <TaskModal
+        isOpen={showEditModal}
+        mode="edit"
+        task={editingTask}
+        goals={goals}
+        onSave={handleUpdateTask}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingTask(null);
+        }}
+      />
 
       {showEndWeekModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -2272,318 +1551,16 @@ const TaskPrioritizer = () => {
         </div>
       )}
 
-      {showHelpModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full p-6 max-h-[80vh] flex flex-col">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">How to Use Task Prioritizer</h2>
-              <button
-                onClick={() => setShowHelpModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X size={24} />
-              </button>
-            </div>
+      <HelpModal
+        isOpen={showHelpModal}
+        onClose={() => setShowHelpModal(false)}
+      />
 
-            <div className="flex-1 overflow-y-auto space-y-6">
-              <section>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">📋 Overview</h3>
-                <p className="text-gray-700">
-                  Task Prioritizer uses the <strong>Eisenhower Matrix</strong> (also called the Urgent-Important Matrix) to help you organize tasks by urgency and importance.
-                  Named after President Dwight D. Eisenhower, this method helps you focus on what truly matters.
-                </p>
-              </section>
-
-              <section className="bg-green-50 border border-green-200 rounded p-4">
-                <h3 className="text-lg font-bold text-green-900 mb-2">🎯 Why Use the Eisenhower Matrix?</h3>
-                <ul className="space-y-2 text-green-800 text-sm">
-                  <li className="flex items-start gap-2">
-                    <span className="font-bold">✓</span>
-                    <span><strong>Reduce stress:</strong> Stop reacting to everything as urgent; prioritize what matters</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="font-bold">✓</span>
-                    <span><strong>Increase productivity:</strong> Focus energy on high-impact tasks instead of busywork</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="font-bold">✓</span>
-                    <span><strong>Achieve goals:</strong> Spend more time on strategic work (Q2) that drives long-term success</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="font-bold">✓</span>
-                    <span><strong>Better work-life balance:</strong> Identify and eliminate time-wasters (Q4)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="font-bold">✓</span>
-                    <span><strong>Make confident decisions:</strong> Clear framework for saying "no" to less important tasks</span>
-                  </li>
-                </ul>
-              </section>
-
-              <section>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">📊 The Four Quadrants</h3>
-                <div className="space-y-3">
-                  <div className="border-l-4 border-red-400 pl-3">
-                    <h4 className="font-semibold text-gray-900">Q1: Urgent & Important (Do First)</h4>
-                    <p className="text-sm text-gray-600">Critical tasks requiring immediate attention. Crises, deadlines, emergencies.</p>
-                  </div>
-                  <div className="border-l-4 border-blue-400 pl-3">
-                    <h4 className="font-semibold text-gray-900">Q2: Important, Not Urgent (Schedule)</h4>
-                    <p className="text-sm text-gray-600">Strategic tasks for long-term success. Planning, development, relationship building.</p>
-                  </div>
-                  <div className="border-l-4 border-yellow-400 pl-3">
-                    <h4 className="font-semibold text-gray-900">Q3: Urgent, Not Important (Delegate)</h4>
-                    <p className="text-sm text-gray-600">Tasks that demand attention but don't contribute to your goals. Interruptions, some emails.</p>
-                  </div>
-                  <div className="border-l-4 border-gray-400 pl-3">
-                    <h4 className="font-semibold text-gray-900">Q4: Neither Urgent nor Important (Eliminate/Communicate)</h4>
-                    <p className="text-sm text-gray-600">Time-wasters and distractions. Consider eliminating these tasks or communicating them appropriately.</p>
-                  </div>
-                </div>
-              </section>
-
-              <section>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">✨ Key Features</h3>
-                <ul className="space-y-2 text-gray-700">
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold">•</span>
-                    <span><strong>Task Icons:</strong> Colorful icons are automatically assigned based on task titles (e.g., 🐛 for "bug", 📧 for "email"). Click the icon in the Add/Edit modal to choose a different one.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold">•</span>
-                    <span><strong>Add Tasks:</strong> Click the "Add Task" button in the header or the + icon in any quadrant</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold">•</span>
-                    <span><strong>Drag & Drop:</strong> Click and drag anywhere on a task (except buttons) to move it between quadrants. Drop zones highlight in blue when hovering.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold">•</span>
-                    <span><strong>Due Dates:</strong> Set optional due dates; overdue tasks are highlighted in red. Tasks automatically sort by due date within each quadrant.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold">•</span>
-                    <span><strong>Auto-Promotion:</strong> Tasks on the not urgent side (Q2, Q4) automatically move to the urgent side (Q1, Q3) when their due date is today or overdue</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold">•</span>
-                    <span><strong>Complete Tasks:</strong> Click the checkbox on a task to mark it complete. Completed tasks appear at the bottom with strikethrough text.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold">•</span>
-                    <span><strong>Edit/Delete:</strong> Double-click anywhere on a task to edit, or use the edit (pencil) icon. Use the X icon to delete permanently.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold">•</span>
-                    <span><strong>Shoutouts:</strong> Click "Shoutout" to recognize colleagues' great work. Shoutouts are included in your weekly summary download.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold">•</span>
-                    <span><strong>Weekly Summaries:</strong> Click "End Week" to download a summary of completed tasks and shoutouts, then start fresh for the next week</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold">•</span>
-                    <span><strong>History:</strong> View and download summaries from previous weeks</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold">•</span>
-                    <span><strong>Undo/Redo:</strong> Click the undo (↶) and redo (↷) buttons in the header, or use keyboard shortcuts. Keeps last 20 actions.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold">•</span>
-                    <span><strong>Task Descriptions:</strong> Add bullet points using <code className="bg-gray-100 px-1 rounded">*</code> and numbered lists using <code className="bg-gray-100 px-1 rounded">1.</code>, <code className="bg-gray-100 px-1 rounded">2.</code>, etc. Line breaks are preserved for better readability.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold">•</span>
-                    <span><strong>Q1 Overload Warning:</strong> If you have 6 or more incomplete tasks in Q1 (Urgent & Important), a warning appears to help you review priorities and prevent burnout.</span>
-                  </li>
-                </ul>
-              </section>
-
-              <section>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">⌨️ Keyboard Shortcuts</h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between items-center bg-gray-50 p-2 rounded">
-                    <span className="font-semibold text-gray-700">Undo</span>
-                    <code className="bg-white px-2 py-1 rounded border border-gray-300">Ctrl+Z</code>
-                  </div>
-                  <div className="flex justify-between items-center bg-gray-50 p-2 rounded">
-                    <span className="font-semibold text-gray-700">Redo</span>
-                    <code className="bg-white px-2 py-1 rounded border border-gray-300">Ctrl+Shift+Z</code> or <code className="bg-white px-2 py-1 rounded border border-gray-300">Ctrl+Y</code>
-                  </div>
-                  <div className="flex justify-between items-center bg-gray-50 p-2 rounded">
-                    <span className="font-semibold text-gray-700">Add Task (in modal)</span>
-                    <code className="bg-white px-2 py-1 rounded border border-gray-300">Ctrl+Enter</code>
-                  </div>
-                  <div className="flex justify-between items-center bg-gray-50 p-2 rounded">
-                    <span className="font-semibold text-gray-700">Close Modal</span>
-                    <code className="bg-white px-2 py-1 rounded border border-gray-300">Escape</code>
-                  </div>
-                  <p className="text-xs text-gray-600 mt-2">
-                    <strong>Note:</strong> On Mac, use <code className="bg-gray-100 px-1 rounded">Cmd</code> instead of <code className="bg-gray-100 px-1 rounded">Ctrl</code>
-                  </p>
-                </div>
-              </section>
-
-              <section>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">📅 Weekly Workflow</h3>
-                <ul className="space-y-2 text-gray-700">
-                  <li className="flex items-start gap-2">
-                    <span className="text-blue-600 font-bold">1.</span>
-                    <span>Work on tasks throughout the week, marking them complete as you finish</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-blue-600 font-bold">2.</span>
-                    <span>Click <strong>"End Week"</strong> to download a summary and clear completed tasks</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-blue-600 font-bold">3.</span>
-                    <span>View past weeks in <strong>"History"</strong> to track your progress</span>
-                  </li>
-                </ul>
-              </section>
-
-              <section>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">💾 Backup & Restore</h3>
-                <p className="text-gray-700 mb-2">
-                  Your data is stored locally in your browser. Use the <strong>Backup</strong> feature to:
-                </p>
-                <ul className="space-y-1 text-gray-700 ml-4">
-                  <li>• Export all tasks, history, and settings to a JSON file</li>
-                  <li>• Restore data from a previous backup</li>
-                  <li>• Transfer data between devices or browsers</li>
-                </ul>
-              </section>
-
-              <section className="bg-purple-50 border border-purple-200 rounded p-4">
-                <h3 className="text-lg font-bold text-purple-900 mb-2">🔒 Privacy & Data Security</h3>
-                <p className="text-purple-800 text-sm mb-2">
-                  Your privacy matters! Task Prioritizer is designed with privacy-first principles:
-                </p>
-                <ul className="space-y-1 text-purple-800 text-sm ml-4">
-                  <li>• <strong>100% Local Storage:</strong> All your tasks and data are stored only on your device in your browser's localStorage</li>
-                  <li>• <strong>No Data Transmission:</strong> Your task data never leaves your computer - nothing is sent to any server</li>
-                  <li>• <strong>No Tracking:</strong> No analytics, no cookies, no data collection of any kind</li>
-                  <li>• <strong>You Own Your Data:</strong> Export anytime using the Backup feature</li>
-                  <li>• <strong>Open Source:</strong> Review the code on GitHub to verify our privacy claims</li>
-                </ul>
-              </section>
-
-              <section className="bg-blue-50 border border-blue-200 rounded p-4">
-                <h3 className="text-lg font-bold text-blue-900 mb-2">💡 Pro Tip</h3>
-                <p className="text-blue-800 text-sm">
-                  Focus most of your time on <strong>Quadrant 2</strong> (Important, Not Urgent).
-                  These strategic tasks prevent Q1 crises and lead to long-term success!
-                </p>
-              </section>
-            </div>
-
-            <div className="mt-4 pt-4 border-t">
-              <button
-                onClick={() => setShowHelpModal(false)}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors font-medium"
-              >
-                Got it!
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showQ1OverloadModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <AlertTriangle size={24} className="text-orange-600" />
-                Q1 Overload Warning
-              </h2>
-              <button
-                onClick={() => setShowQ1OverloadModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <div className="space-y-4 overflow-y-auto flex-1 pr-2">
-              <div className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded">
-                <p className="text-orange-900 font-semibold mb-2">
-                  You have {tasks.filter(t => t.quadrant === 'q1' && !t.completed).length} incomplete tasks in Q1 (Urgent & Important)
-                </p>
-                <p className="text-orange-800 text-sm">
-                  Having too many urgent and important tasks can lead to stress and burnout. Let's review your priorities.
-                </p>
-              </div>
-
-              <section>
-                <h3 className="font-bold text-gray-900 mb-2 flex items-center gap-2">
-                  🔥 Why Q1 Overload Happens
-                </h3>
-                <p className="text-gray-700 text-sm mb-2">
-                  Research shows that many Q1 crises originate from <strong>neglected Q2 tasks</strong> (Important but Not Urgent).
-                  When we don't invest in planning, prevention, and strategic work, those tasks eventually become urgent fires.
-                </p>
-              </section>
-
-              <section className="bg-blue-50 border border-blue-200 rounded p-4">
-                <h3 className="font-bold text-blue-900 mb-3 flex items-center gap-2">
-                  💡 How to Reduce Q1 Overload
-                </h3>
-                <ul className="space-y-2 text-blue-900 text-sm">
-                  <li className="flex items-start gap-2">
-                    <span className="font-bold text-blue-600">1.</span>
-                    <span><strong>Review each Q1 task:</strong> Are they ALL truly urgent AND important? Some might actually belong in Q2 or Q3.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="font-bold text-blue-600">2.</span>
-                    <span><strong>Focus on top 2-3 priorities:</strong> You can't do everything at once. What MUST be done today?</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="font-bold text-blue-600">3.</span>
-                    <span><strong>Break large tasks into smaller steps:</strong> Overwhelming tasks become manageable when divided into concrete actions.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="font-bold text-blue-600">4.</span>
-                    <span><strong>Schedule Q2 time:</strong> Invest in important-but-not-urgent tasks (planning, prevention, skill-building) to prevent future crises.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="font-bold text-blue-600">5.</span>
-                    <span><strong>Delegate or postpone:</strong> Can any Q1 tasks be delegated to someone else or scheduled for tomorrow?</span>
-                  </li>
-                </ul>
-              </section>
-
-              <section className="bg-green-50 border border-green-200 rounded p-4">
-                <h3 className="font-bold text-green-900 mb-2">
-                  🎯 The Q2 Solution
-                </h3>
-                <p className="text-green-800 text-sm">
-                  Successful people spend most of their time in <strong>Q2</strong> (Important, Not Urgent).
-                  By proactively working on planning, development, and prevention, you'll have fewer Q1 fires to fight.
-                  Make Q2 your priority to reduce stress and achieve your goals.
-                </p>
-              </section>
-
-              <div className="bg-gray-50 border border-gray-200 rounded p-3">
-                <p className="text-xs text-gray-700">
-                  <strong>💭 Remember:</strong> Productivity isn't about doing everything—it's about doing the right things.
-                  Take a deep breath, prioritize ruthlessly, and focus on what truly matters.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <button
-                onClick={() => setShowQ1OverloadModal(false)}
-                className="w-full bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors font-medium"
-              >
-                I'll Review My Priorities
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Q1OverloadModal
+        isOpen={showQ1OverloadModal}
+        onClose={() => setShowQ1OverloadModal(false)}
+        q1TaskCount={tasks.filter(t => t.quadrant === 'q1' && !t.completed).length}
+      />
 
       {showFontModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
