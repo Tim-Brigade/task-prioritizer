@@ -4,6 +4,17 @@ import SubGoalList from './SubGoalList';
 import { calculateProgress, getStalenessText, getStalenessLevel } from '../utils/goalUtils';
 import { formatDateForDisplay } from '../utils/dateUtils';
 
+const LIFE_AREA_LABELS = {
+  'career': 'Career',
+  'health': 'Health & Fitness',
+  'relationships': 'Relationships',
+  'finance': 'Finance',
+  'personal-growth': 'Personal Growth',
+  'education': 'Education',
+  'hobbies': 'Hobbies & Recreation',
+  'other': 'Other'
+};
+
 /**
  * Modal component for displaying detailed goal information
  */
@@ -66,6 +77,11 @@ const GoalDetail = ({ goal, tasks = [], onClose, onUpdate, onEdit, onDelete, onA
                   Major Goal
                 </span>
               )}
+              {goal.lifeArea && LIFE_AREA_LABELS[goal.lifeArea] && (
+                <span className="text-sm font-semibold bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                  {LIFE_AREA_LABELS[goal.lifeArea]}
+                </span>
+              )}
               {goal.status === 'paused' && (
                 <span className="text-sm font-semibold bg-gray-200 text-gray-700 px-2 py-1 rounded">
                   Paused
@@ -108,6 +124,36 @@ const GoalDetail = ({ goal, tasks = [], onClose, onUpdate, onEdit, onDelete, onA
               {goal.outcome}
             </p>
           </div>
+
+          {/* S.M.A.R.T. Details */}
+          {(goal.why || goal.resources || goal.obstacles) && (
+            <div className="space-y-4">
+              {goal.why && (
+                <div>
+                  <h3 className="font-semibold text-gray-700 mb-2">Why This Matters</h3>
+                  <p className="text-gray-800 whitespace-pre-wrap bg-purple-50 p-3 rounded">
+                    {goal.why}
+                  </p>
+                </div>
+              )}
+              {goal.resources && (
+                <div>
+                  <h3 className="font-semibold text-gray-700 mb-2">Resources Needed</h3>
+                  <p className="text-gray-800 whitespace-pre-wrap bg-green-50 p-3 rounded">
+                    {goal.resources}
+                  </p>
+                </div>
+              )}
+              {goal.obstacles && (
+                <div>
+                  <h3 className="font-semibold text-gray-700 mb-2">Potential Obstacles</h3>
+                  <p className="text-gray-800 whitespace-pre-wrap bg-amber-50 p-3 rounded">
+                    {goal.obstacles}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Progress (for major goals) */}
           {goal.type === 'major' && (
