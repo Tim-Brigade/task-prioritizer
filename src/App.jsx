@@ -1010,21 +1010,22 @@ const TaskPrioritizer = () => {
   );
 
   return (
-    <div className="min-h-screen p-4" style={{ 
+    <div className="min-h-screen p-4" style={{
       background: 'linear-gradient(135deg, #f5f5f0 0%, #e8e8e0 100%)',
     }}>
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-gradient-to-r from-gray-700 to-gray-800 rounded-lg shadow-2xl p-3 mb-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="text-white">
-              <div className="text-lg font-bold">Task Prioritizer</div>
-              <div className="text-xs text-gray-300 flex items-center gap-1.5">
-                <Calendar size={12} />
-                {getWeekDateRange()}
+      <div className="max-w-[1800px] mx-auto">
+        <div className="bg-gradient-to-r from-gray-700 to-gray-800 rounded-lg shadow-2xl p-3 mb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div className="flex items-center gap-3">
+              <div className="text-white">
+                <div className="text-lg font-bold">Task Prioritizer</div>
+                <div className="text-xs text-gray-300 flex items-center gap-1.5">
+                  <Calendar size={12} />
+                  {getWeekDateRange()}
+                </div>
               </div>
             </div>
-          </div>
-          <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center flex-wrap">
             <button
               onClick={handleUndo}
               disabled={undoHistory.length === 0}
@@ -1044,34 +1045,36 @@ const TaskPrioritizer = () => {
             <div className="w-px h-6 bg-gray-600"></div>
             <button
               onClick={() => openAddModal()}
-              className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
+              className="bg-green-500 hover:bg-green-600 text-white px-2 sm:px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
             >
               <Plus size={16} />
-              Add Task
+              <span className="hidden sm:inline">Add Task</span>
+              <span className="sm:hidden">Add</span>
             </button>
             <button
               onClick={() => setShowShoutoutModal(true)}
-              className="bg-pink-500 hover:bg-pink-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
+              className="bg-pink-500 hover:bg-pink-600 text-white px-2 sm:px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
               title="Add Shoutout"
             >
               <Heart size={16} />
-              Shoutout
+              <span className="hidden sm:inline">Shoutout</span>
             </button>
             <button
               onClick={endWeek}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
+              className="bg-blue-500 hover:bg-blue-600 text-white px-2 sm:px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
             >
               <Download size={16} />
-              End Week
+              <span className="hidden sm:inline">End Week</span>
+              <span className="sm:hidden">End</span>
             </button>
             <div className="relative more-dropdown-container">
               <button
                 onClick={() => setShowMoreDropdown(!showMoreDropdown)}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
+                className="bg-gray-600 hover:bg-gray-700 text-white px-2 sm:px-3 py-1.5 rounded shadow-lg flex items-center gap-1.5 transition-all text-sm font-medium"
                 title="More options"
               >
                 <MoreVertical size={16} />
-                More
+                <span className="hidden sm:inline">More</span>
               </button>
               {showMoreDropdown && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50">
@@ -1131,6 +1134,7 @@ const TaskPrioritizer = () => {
                 </div>
               )}
             </div>
+          </div>
           </div>
         </div>
 
@@ -1763,29 +1767,29 @@ const App = () => {
     <div className="min-h-screen">
       {/* Navigation Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="max-w-[1800px] mx-auto px-4">
           <div className="flex gap-1">
             <button
               onClick={() => setCurrentView('tasks')}
-              className={`px-6 py-3 font-medium transition-all flex items-center gap-2 ${
+              className={`px-4 sm:px-6 py-3 font-medium transition-all flex items-center gap-2 ${
                 currentView === 'tasks'
                   ? 'border-b-2 border-blue-500 text-blue-600'
                   : 'text-gray-600 hover:text-gray-800'
               }`}
             >
               <CheckSquare size={18} />
-              Tasks
+              <span className="hidden xs:inline">Tasks</span>
             </button>
             <button
               onClick={() => setCurrentView('goals')}
-              className={`px-6 py-3 font-medium transition-all flex items-center gap-2 ${
+              className={`px-4 sm:px-6 py-3 font-medium transition-all flex items-center gap-2 ${
                 currentView === 'goals'
                   ? 'border-b-2 border-blue-500 text-blue-600'
                   : 'text-gray-600 hover:text-gray-800'
               }`}
             >
               <Target size={18} />
-              Goals
+              <span className="hidden xs:inline">Goals</span>
             </button>
           </div>
         </div>
