@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 import { getAutoIcon } from '../hooks/useTasks';
@@ -27,6 +27,7 @@ const TaskModal = ({
 
   const [formData, setFormData] = useState(defaultTask);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const descriptionRef = useRef(null);
 
   // Reset form when modal opens
   useEffect(() => {
@@ -66,6 +67,15 @@ const TaskModal = ({
       handleSubmit();
     } else if (e.key === 'Escape') {
       onClose();
+    }
+  };
+
+  const handleTitleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      descriptionRef.current?.focus();
+    } else {
+      handleKeyDown(e);
     }
   };
 
@@ -128,7 +138,7 @@ const TaskModal = ({
               type="text"
               value={formData.title}
               onChange={(e) => handleTitleChange(e.target.value)}
-              onKeyDown={handleKeyDown}
+              onKeyDown={handleTitleKeyDown}
               className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="What needs to be done?"
               autoFocus
@@ -141,6 +151,7 @@ const TaskModal = ({
               Description
             </label>
             <textarea
+              ref={descriptionRef}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               onKeyDown={handleKeyDown}
