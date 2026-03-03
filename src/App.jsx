@@ -133,6 +133,10 @@ const TaskPrioritizer = () => {
   const [showDelegateModal, setShowDelegateModal] = useState(false);
   const [delegateTaskId, setDelegateTaskId] = useState(null);
   const [delegateName, setDelegateName] = useState('');
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [pendingRescheduleTask, setPendingRescheduleTask] = useState(null);
+  const [pendingRescheduleTarget, setPendingRescheduleTarget] = useState(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
 
   // Use ref for drag state to avoid re-renders during drag
   const draggedTaskRef = useRef(null);
@@ -260,7 +264,7 @@ const TaskPrioritizer = () => {
   useEffect(() => {
     const handleKeyDown = (e) => {
       // Don't handle undo/redo if modals are open
-      if (showAddModal || showEditModal || showEndWeekModal || showHistoryModal || showDeleteHistoryModal || showBackupModal || showShoutoutModal || showHelpModal || showFontModal || showQ1OverloadModal || showDelegateModal) {
+      if (showAddModal || showEditModal || showEndWeekModal || showHistoryModal || showDeleteHistoryModal || showBackupModal || showShoutoutModal || showHelpModal || showFontModal || showQ1OverloadModal || showDelegateModal || showRescheduleModal) {
         return;
       }
 
@@ -279,7 +283,7 @@ const TaskPrioritizer = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undoHistory, redoHistory, tasks, shoutouts, showAddModal, showEditModal, showEndWeekModal, showHistoryModal, showDeleteHistoryModal, showBackupModal, showShoutoutModal, showHelpModal, showFontModal, showQ1OverloadModal, showDelegateModal]);
+  }, [undoHistory, redoHistory, tasks, shoutouts, showAddModal, showEditModal, showEndWeekModal, showHistoryModal, showDeleteHistoryModal, showBackupModal, showShoutoutModal, showHelpModal, showFontModal, showQ1OverloadModal, showDelegateModal, showRescheduleModal]);
 
   const saveToHistory = (action, data) => {
     setUndoHistory(prev => [...prev, { action, data, timestamp: Date.now() }].slice(-20)); // Keep last 20 actions
@@ -664,8 +668,30 @@ const TaskPrioritizer = () => {
 
   const handleDrop = (e, quadrant) => {
     e.preventDefault();
-    if (draggedTaskRef.current) {
-      moveTask(draggedTaskRef.current.id, quadrant);
+    const task = draggedTaskRef.current;
+    if (task) {
+      const fromUrgent = task.quadrant === 'q1' || task.quadrant === 'q3';
+      const toNotUrgent = quadrant === 'q2' || quadrant === 'q4';
+
+      const isOverdueOrToday = task.dueDate && (() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const due = new Date(task.dueDate);
+        due.setHours(0, 0, 0, 0);
+        return Math.ceil((due - today) / (1000 * 60 * 60 * 24)) < 1;
+      })();
+
+      if (fromUrgent && toNotUrgent && isOverdueOrToday) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        setRescheduleDate(tomorrow.toISOString().split('T')[0]);
+        setPendingRescheduleTask(task);
+        setPendingRescheduleTarget(quadrant);
+        setShowRescheduleModal(true);
+      } else {
+        moveTask(task.id, quadrant);
+      }
+
       draggedTaskRef.current = null;
       isDraggingRef.current = false;
       setDragOverQuadrant(null);
@@ -1565,6 +1591,61 @@ const TaskPrioritizer = () => {
         onClose={() => setShowQ1OverloadModal(false)}
         q1TaskCount={tasks.filter(t => t.quadrant === 'q1' && !t.completed).length}
       />
+
+      {showRescheduleModal && pendingRescheduleTask && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-gray-900">Reschedule Task</h2>
+              <button
+                onClick={() => { setShowRescheduleModal(false); setPendingRescheduleTask(null); setPendingRescheduleTarget(null); }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              <span className="font-medium">"{pendingRescheduleTask.title}"</span> is due today or overdue.
+              Pick a new due date to move it out of urgent.
+            </p>
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-gray-700 mb-1">New due date</label>
+              <input
+                type="date"
+                min={rescheduleDate}
+                value={rescheduleDate}
+                onChange={(e) => setRescheduleDate(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  saveToHistory('edit', { ...pendingRescheduleTask });
+                  setTasks(prev => prev.map(t =>
+                    t.id === pendingRescheduleTask.id
+                      ? { ...t, dueDate: rescheduleDate, quadrant: pendingRescheduleTarget }
+                      : t
+                  ));
+                  setShowRescheduleModal(false);
+                  setPendingRescheduleTask(null);
+                  setPendingRescheduleTarget(null);
+                }}
+                disabled={!rescheduleDate}
+                className="flex-1 bg-blue-600 text-white py-2 rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Reschedule & Move
+              </button>
+              <button
+                onClick={() => { setShowRescheduleModal(false); setPendingRescheduleTask(null); setPendingRescheduleTarget(null); }}
+                className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-md text-sm font-medium hover:bg-gray-200"
+              >
+                Keep in Urgent
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showFontModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
